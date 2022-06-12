@@ -3,6 +3,7 @@ from TexSoup import TexSoup
 
 from nltk.stem import WordNetLemmatizer
 import nltk
+import bibtexparser
 
 import re
 
@@ -17,6 +18,8 @@ class StructureExtraction:
         self.data_dir = Path(data_dir)
         self.valid_ids = []
         self.soup = None
+        self.bib = None
+        self.active = None
         self.lemmatizer = WordNetLemmatizer()
         if not self.data_dir:
             raise ValueError('Data dir not found')
@@ -38,8 +41,11 @@ class StructureExtraction:
 
     def set_as_active(self, id: str) -> bool:
         tex_file = self.data_dir / str(id + ".tex")
+        bib_file = self.data_dir / str(id + ".bib")
         try:
             self.soup = TexSoup(open(tex_file), tolerance=1)
+            self.bib = bibtexparser.load(open(bib_file))
+            self.active = str(id)
             return True
         except:
             print(f"Could not load document {tex_file}")
@@ -70,8 +76,13 @@ class StructureExtraction:
                 cur_sec = self._preprocess_section_title(elm.string.lower())
                 cite_dict[cur_sec] = []
             else:
-                # is a citation
-                cite_dict[cur_sec].append(elm.string)
+                try:
+                    # is a citation
+                    cit_info = self.bib.entries_dict[str(elm.string)]
+                    cite_dict[cur_sec].append(cit_info)
+                except:
+                    # we can't extract information if the bib entry does not exists
+                    print(f"Could not load Key {elm.string} in document {}")
 
         return cite_dict
 
