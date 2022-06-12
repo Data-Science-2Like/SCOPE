@@ -16,3 +16,4 @@ dependencies:
       - transformers==4.2.1
       - simpletransformers~=0.63.7
       - bibtexparser==1.2.0
+      - anytree==2.8.0

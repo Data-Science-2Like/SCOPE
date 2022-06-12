@@ -2,12 +2,20 @@ from pathlib import Path
 from TexSoup import TexSoup
 
 from nltk.stem import WordNetLemmatizer
+from tree import *
+
 import nltk
 import bibtexparser
+
+import json
 
 import re
 
 DATA_DIR = 'D:/expanded'
+
+SYNONYM_DICT = './synonym_dict.json'
+
+TEMPLATES = './templates.json'
 
 nltk.download('omw-1.4')
 
@@ -21,6 +29,17 @@ class StructureExtraction:
         self.bib = None
         self.active = None
         self.lemmatizer = WordNetLemmatizer()
+        with open(SYNONYM_DICT) as f:
+            self.s_dict = json.load(f)
+        with open(TEMPLATES) as f:
+            self.templates = json.load(f)
+        self.tree = Tree(['*'], None)
+        for t in self.templates:
+            update_tree(self.tree,t)
+        self.atree = t2anytree(self.tree)
+        for pre, _, node in RenderTree(self.atree):
+            print("%s%s" % (pre, node.name))
+
         if not self.data_dir:
             raise ValueError('Data dir not found')
 
@@ -54,15 +73,64 @@ class StructureExtraction:
     def _preprocess_section_title(self, title: str) -> str:
         cleaned = re.sub('[^A-Za-z0-9 ]+', '', title.lower())
         stemmed = " ".join([self.lemmatizer.lemmatize(w) for w in nltk.word_tokenize(cleaned)])
+        if stemmed in self.s_dict.keys():
+            stemmed = self.s_dict[stemmed]
+
         return stemmed
 
-    def get_section_titles(self, preprocessing=False, use_sdict=False, apply_rules=False):
+    def _match_template_rules(self, sections):
+        # Declare root of tree
+        root = self.atree.root
+
+        sect_tuple = tuple(sections)
+        ##
+        # iterate through tree
+
+        most_specific_rule_len = 0
+
+        for item in PreOrderIter(root):
+            res = eval(item.name)
+            if sub(sect_tuple, res):
+                if most_specific_rule_len < len(res):
+                    most_specific_rule_len = len(res)
+                print(item)
+
+        if most_specific_rule_len > 3:
+            # now change all to methods
+            return True
+        return False
+
+
+    def get_section_titles(self):
         if self.soup is None:
             raise ValueError("No file loaded")
-        section_list = [s.string.lower() for s in self.soup.find_all('section')]
-        if preprocessing:
-            return [self._preprocess_section_title(s) for s in section_list]
-        return section_list
+        section_list = []
+        for s_candidate in self.soup.find_all(['section','appendix']):
+            if s_candidate.name == 'appendix':
+                break
+            if s_candidate.string.lower() == 'conclusion':
+                section_list.append(s_candidate.string.lower())
+                break
+            section_list.append(s_candidate.string.lower())
+
+        result = [self._preprocess_section_title(s) for s in section_list]
+
+        # remove duplicates for rule matching
+        reduced = list(dict.fromkeys(result))
+
+        matched = self._match_template_rules(reduced)
+
+        result = []
+        self.section_mapping = dict()
+        for i in range(0, len(section_list)):
+            if matched and section_list[i] not in self.s_dict.keys():
+                self.section_mapping[section_list[i]] = 'method'
+                result.append('method')
+            else:
+                self.section_mapping[section_list[i]] = section_list[i]
+                result.append(section_list[i])
+
+        return result
 
     def _get_citations_by_sections(self, transform_citation):
         if self.soup is None:
@@ -217,6 +285,9 @@ if __name__ == "__main__":
             idx += 1
             continue
 
+
+        section_list = extraction.get_section_titles()
+
         # citation_pos = extraction.get_citations_with_pos_by_section()
 
         sentences = extraction.get_section_text_citeworth()
@@ -224,6 +295,12 @@ if __name__ == "__main__":
 
         sentences2 = extraction.get_section_text_cit_keys()
         print(sentences2)
+
+        # Map<List<Tuple<str,List<str,Bool>>>> CiteWorth
+
+        # Map<List<Tuple<str,List<str,List<int>>>>> Reranker
+
+        # Map<List<int>> Prefetcher
         # test citation extraction
         # citations = extraction.get_citations_by_sections()
         # for section, cit_list in citations.items():
