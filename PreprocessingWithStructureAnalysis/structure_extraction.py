@@ -102,32 +102,61 @@ class StructureExtraction:
 
         def get_citation_pos(elm):
             # return self.soup.char_pos_to_line(elm.position)
-            return elm.position, len(str(elm.expr))  # use raw position for file seek
+            return elm.position, len(str(elm.expr)), str(elm.string)  # use raw position for file seek
 
         return self._get_citations_by_sections(get_citation_pos)
 
-    def _get_start_offset(self):
-        objs = self.soup.find_all('documentclass')
-        if len(objs) == 1:
-            return objs[0].position
-        return -1
+    def _process_fulltext(self,section_title: str,section_start: int, text: str, transform_cits, mask_citations=True):
+        citations_pos = self.get_citations_with_pos_by_section()[section_title]
+        if mask_citations:
+            for cit_pos, cit_len, cit_key in citations_pos:
+                relative_pos = cit_pos - section_start
 
-    def get_section_lines(self, mask_citations=True):
+                # don't change length of text here, so that citation offsets are still valid
+                text = text[:relative_pos] + str('X' * cit_len) + text[relative_pos + cit_len:]
+
+        split_paragraphs = True
+        if split_paragraphs:
+            offset = 0
+            result_paragraphs = []
+            paragraph_candidates = text.split('\n\n')
+
+            for paragraph in paragraph_candidates:
+                if len(paragraph) == 0:
+                    offset += 2
+                    continue
+
+                result_sentences = []
+                sentences = nltk.sent_tokenize(paragraph)
+                for sentence in sentences:
+                    cits_in_sentence = [c for c in citations_pos if c[0]-section_start > offset and c[0]-section_start < offset +len(sentence)]
+                    result_sentences.append((re.sub('[X]{4,}','',sentence),transform_cits(cits_in_sentence)))
+                    offset += len(sentence)
+
+                result_paragraphs.append(result_sentences)
+            if offset != len(text):
+                print(f"Missmatch between offset: {offset} and text len {len(text)}")
+
+            return result_paragraphs
+        else:
+            # Only return fulltext
+            text = re.sub('[X]{4,}','',text)
+            return text
+
+    def _get_section_lines(self,transform_cits):
         if self.soup is None:
             raise ValueError("No file loaded")
 
-        citations_with_pos = self.get_citations_with_pos_by_section()
-
         sObjs = self.soup.find_all('section')
-        section_list = [(self._preprocess_section_title(str(s.string)), s.position) for s in sObjs]
+        section_list = [(self._preprocess_section_title(str(s.string)), s.position, len(str(s.expr))) for s in sObjs]
 
-        const_seek_offset = self._get_start_offset()
+        section_dict = dict()
 
         curr_section = ''
         start_pos = None
         end_pos = None
 
-        for sec_title, position in section_list:
+        for sec_title, position, tag_len in section_list:
             if start_pos is None:
                 curr_section = sec_title
                 start_pos = position
@@ -144,19 +173,33 @@ class StructureExtraction:
                 # correct readin buffer
                 section_text = section_text[strange_offset:] + f.read(strange_offset)
 
-                if mask_citations:
-                    citation_pos = citations_with_pos[curr_section]
+                # mask section tag so that it gets later removed
+                section_text =str('X' * tag_len) + section_text[tag_len:]
 
-                    for cit_pos, cit_len in citation_pos:
-                        relative_pos = cit_pos - start_pos
+                result = self._process_fulltext(curr_section, start_pos, section_text,transform_cits,True)
 
-                        section_text = section_text[:relative_pos] + str('X' * cit_len) + section_text[relative_pos + cit_len:]
-                        # section_text[cit_pos+ strange_offset:cit_pos+ strange_offset + cit_len] = 'X' * cit_len
-
-                print(section_text)
+                section_dict[curr_section] = result
 
             start_pos = end_pos
             curr_section = sec_title
+
+            # TODO process last section
+
+        return section_dict
+
+    def get_section_text_citeworth(self):
+
+        def to_citeworth(cits):
+            return len(cits) > 0
+
+        return self._get_section_lines(to_citeworth)
+
+    def get_section_text_cit_keys(self):
+
+        def to_keys(cits):
+            return [c[2] for c in cits]
+
+        return self._get_section_lines(to_keys)
 
 
 if __name__ == "__main__":
@@ -176,8 +219,11 @@ if __name__ == "__main__":
 
         # citation_pos = extraction.get_citations_with_pos_by_section()
 
-        sentences = extraction.get_section_lines()
+        sentences = extraction.get_section_text_citeworth()
+        print(sentences)
 
+        sentences2 = extraction.get_section_text_cit_keys()
+        print(sentences2)
         # test citation extraction
         # citations = extraction.get_citations_by_sections()
         # for section, cit_list in citations.items():
