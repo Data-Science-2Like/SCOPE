@@ -64,10 +64,10 @@ class StructureExtraction:
             return [self._preprocess_section_title(s) for s in section_list]
         return section_list
 
-    def get_citations_by_sections(self):
+    def _get_citations_by_sections(self, transform_citation):
         if self.soup is None:
             raise ValueError("No file loaded")
-        section_citation_list = self.soup.find_all(['section', 'cite', 'citet'])
+        section_citation_list = self.soup.find_all(['section', 'cite', 'citet', 'citep'])
         cur_sec = ''
         cite_dict = dict()
         for elm in section_citation_list:
@@ -78,13 +78,85 @@ class StructureExtraction:
             else:
                 try:
                     # is a citation
-                    cit_info = self.bib.entries_dict[str(elm.string)]
-                    cite_dict[cur_sec].append(cit_info)
+                    # TODO issue when multiple citations in citation marker
+                    cite_obj = transform_citation(elm)
+                    cite_dict[cur_sec].append(cite_obj)
                 except:
-                    # we can't extract information if the bib entry does not exists
-                    print(f"Could not load Key {elm.string} in document {}")
+                    # some error in transfor_citation occured
+                    print(f"Error on transform_citation {elm} in document {self.active}")
 
         return cite_dict
+
+    def get_citations_by_sections(self):
+        if self.soup is None:
+            raise ValueError("No file loaded")
+
+        def get_bib_entry(elm):
+            return self.bib.entries_dict[str(elm.string)]
+
+        return self._get_citations_by_sections(get_bib_entry)
+
+    def get_citations_with_pos_by_section(self):
+        if self.soup is None:
+            raise ValueError("No file loaded")
+
+        def get_citation_pos(elm):
+            # return self.soup.char_pos_to_line(elm.position)
+            return elm.position, len(str(elm.expr))  # use raw position for file seek
+
+        return self._get_citations_by_sections(get_citation_pos)
+
+    def _get_start_offset(self):
+        objs = self.soup.find_all('documentclass')
+        if len(objs) == 1:
+            return objs[0].position
+        return -1
+
+    def get_section_lines(self, mask_citations=True):
+        if self.soup is None:
+            raise ValueError("No file loaded")
+
+        citations_with_pos = self.get_citations_with_pos_by_section()
+
+        sObjs = self.soup.find_all('section')
+        section_list = [(self._preprocess_section_title(str(s.string)), s.position) for s in sObjs]
+
+        const_seek_offset = self._get_start_offset()
+
+        curr_section = ''
+        start_pos = None
+        end_pos = None
+
+        for sec_title, position in section_list:
+            if start_pos is None:
+                curr_section = sec_title
+                start_pos = position
+                continue
+            end_pos = position
+            tex_file = self.data_dir / str(self.active + ".tex")
+            with open(tex_file, 'r') as f:
+                f.seek(start_pos, 0)
+                section_text = f.read(end_pos - start_pos)
+
+                # section text now seems off by a few characters
+                strange_offset = section_text.find('\section')
+
+                # correct readin buffer
+                section_text = section_text[strange_offset:] + f.read(strange_offset)
+
+                if mask_citations:
+                    citation_pos = citations_with_pos[curr_section]
+
+                    for cit_pos, cit_len in citation_pos:
+                        relative_pos = cit_pos - start_pos
+
+                        section_text = section_text[:relative_pos] + str('X' * cit_len) + section_text[relative_pos + cit_len:]
+                        # section_text[cit_pos+ strange_offset:cit_pos+ strange_offset + cit_len] = 'X' * cit_len
+
+                print(section_text)
+
+            start_pos = end_pos
+            curr_section = sec_title
 
 
 if __name__ == "__main__":
@@ -101,9 +173,17 @@ if __name__ == "__main__":
         if not extraction.set_as_active(valid_ids[idx]):
             idx += 1
             continue
-        citations = extraction.get_citations_by_sections()
-        for section, cit_list in citations.items():
-            print(f"{section}: {cit_list}")
+
+        # citation_pos = extraction.get_citations_with_pos_by_section()
+
+        sentences = extraction.get_section_lines()
+
+        # test citation extraction
+        # citations = extraction.get_citations_by_sections()
+        # for section, cit_list in citations.items():
+        #   print(f"{section}: {cit_list}")
+
+        # test section title extraction
         # section_list = extraction.get_section_titles(True)
         # print(section_list)
         idx += 1
