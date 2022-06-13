@@ -1,3 +1,4 @@
+import tempfile
 from pathlib import Path
 from TexSoup import TexSoup
 
@@ -29,6 +30,7 @@ class StructureExtraction:
         self.bib = None
         self.active = None
         self.lemmatizer = WordNetLemmatizer()
+        self.tmp_dir = Path(tempfile.mkdtemp())
         with open(SYNONYM_DICT) as f:
             self.s_dict = json.load(f)
         with open(TEMPLATES) as f:
@@ -63,12 +65,28 @@ class StructureExtraction:
         bib_file = self.data_dir / str(id + ".bib")
         try:
             self.soup = TexSoup(open(tex_file), tolerance=1)
+            self._filter_unwanted_stuff()
+            tmp_file = self.tmp_dir / str(id + ".tex")
+            with open(tmp_file,'w') as f:
+                f.write(str(self.soup))
             self.bib = bibtexparser.load(open(bib_file))
             self.active = str(id)
             return True
         except:
             print(f"Could not load document {tex_file}")
             return False
+
+    def _filter_unwanted_stuff(self):
+        unwanted = ['subsection', 'label', 'ref']
+        unwanted_env = ['table', 'tabular', 'figure']
+
+        for item in self.soup:
+            if item.name in unwanted:
+                item.delete()
+            elif item.name == 'begin' and item.string in unwanted_env:
+                item.delete()
+
+
 
     def _preprocess_section_title(self, title: str) -> str:
         cleaned = re.sub('[^A-Za-z0-9 ]+', '', title.lower())
@@ -230,8 +248,10 @@ class StructureExtraction:
                 start_pos = position
                 continue
             end_pos = position
-            tex_file = self.data_dir / str(self.active + ".tex")
-            with open(tex_file, 'r') as f:
+
+            # loaded the processed tex file
+            p_tex_file = self.tmp_dir / str(self.active + ".tex")
+            with open(p_tex_file, 'r') as f:
                 f.seek(start_pos, 0)
                 section_text = f.read(end_pos - start_pos)
 
