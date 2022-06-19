@@ -1,6 +1,7 @@
 import tempfile
 from pathlib import Path
 from TexSoup import TexSoup, TexNode
+from TexSoup.data import TexText
 
 from nltk.stem import WordNetLemmatizer
 from tree import *
@@ -87,9 +88,13 @@ class StructureExtraction:
         print(f'Figure Count: {figure_cnt}')
 
     def _filter_unwanted_stuff(self):
-        unwanted_env = ['table', 'tabular', 'figure', 'eqnarray', 'abstract', '$', 'algoritm', 'algorithmic']
+        unwanted_env = ['table', 'tabular', 'figure', 'eqnarray', 'abstract', '$', 'algoritm', 'algorithmic', 'align', 'displaymath', 'definition', 'theorem', 'lemma', 'proof', 'center', 'aligned']
+
+        # TODO is center only used for tables?
 
         unwanted_cmds = ['label', 'paragraph', 'ref', 'subsection', 'subsubsection']
+
+        keep_content = ['emph', 'textit', 'texttt', 'textbf']
 
         # TODO itemize must be kept
         # TODO what about footnotes
@@ -102,6 +107,8 @@ class StructureExtraction:
                     item.delete()
                 if type(item) == TexNode and item.name in unwanted_cmds:
                     item.delete()
+                if type(item) == TexNode and item.name in keep_content:
+                    item.replace_with(TexNode(TexText(item.string)))
             return True
         except Exception as e:
             #
