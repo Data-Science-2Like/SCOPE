@@ -1,6 +1,6 @@
 import tempfile
 from pathlib import Path
-from TexSoup import TexSoup
+from TexSoup import TexSoup, TexNode
 
 from nltk.stem import WordNetLemmatizer
 from tree import *
@@ -30,14 +30,15 @@ class StructureExtraction:
         self.bib = None
         self.active = None
         self.lemmatizer = WordNetLemmatizer()
-        self.tmp_dir = Path(tempfile.mkdtemp())
+        # self.tmp_dir = Path(tempfile.mkdtemp())
+        self.tmp_dir = Path('C:\\Users\\Simon\\Desktop\\test2')
         with open(SYNONYM_DICT) as f:
             self.s_dict = json.load(f)
         with open(TEMPLATES) as f:
             self.templates = json.load(f)
         self.tree = Tree(['*'], None)
         for t in self.templates:
-            update_tree(self.tree,t)
+            update_tree(self.tree, t)
         self.atree = t2anytree(self.tree)
         for pre, _, node in RenderTree(self.atree):
             print("%s%s" % (pre, node.name))
@@ -65,9 +66,10 @@ class StructureExtraction:
         bib_file = self.data_dir / str(id + ".bib")
         try:
             self.soup = TexSoup(open(tex_file), tolerance=1)
+            self._analyze_structure()
             self._filter_unwanted_stuff()
             tmp_file = self.tmp_dir / str(id + ".tex")
-            with open(tmp_file,'w') as f:
+            with open(tmp_file, 'w') as f:
                 f.write(str(self.soup))
             self.bib = bibtexparser.load(open(bib_file))
             self.active = str(id)
@@ -76,17 +78,34 @@ class StructureExtraction:
             print(f"Could not load document {tex_file}")
             return False
 
+    def _analyze_structure(self):
+        table_cnt = self.soup.count(r'\begin{table}')
+        tabular_cnt = self.soup.count(r'\begin{tabular}')
+        figure_cnt = self.soup.count(r'\begin{figure}')
+        print(f'Table Count: {table_cnt}')
+        print(f'Tabular Count: {tabular_cnt}')
+        print(f'Figure Count: {figure_cnt}')
+
     def _filter_unwanted_stuff(self):
-        unwanted = ['subsection', 'label', 'ref']
-        unwanted_env = ['table', 'tabular', 'figure']
+        unwanted_env = ['table', 'tabular', 'figure', 'eqnarray', 'abstract', '$', 'algoritm', 'algorithmic']
 
-        for item in self.soup:
-            if item.name in unwanted:
-                item.delete()
-            elif item.name == 'begin' and item.string in unwanted_env:
-                item.delete()
+        unwanted_cmds = ['label', 'paragraph', 'ref', 'subsection', 'subsubsection']
 
+        # TODO itemize must be kept
+        # TODO what about footnotes
 
+        # TODO parapgraph structure gets lost
+
+        try:
+            for item in self.soup.document:
+                if type(item) == TexNode and item.name in unwanted_env:
+                    item.delete()
+                if type(item) == TexNode and item.name in unwanted_cmds:
+                    item.delete()
+            return True
+        except Exception as e:
+            #
+            return False
 
     def _preprocess_section_title(self, title: str) -> str:
         cleaned = re.sub('[^A-Za-z0-9 ]+', '', title.lower())
@@ -118,12 +137,11 @@ class StructureExtraction:
             return True
         return False
 
-
     def get_section_titles(self):
         if self.soup is None:
             raise ValueError("No file loaded")
         section_list = []
-        for s_candidate in self.soup.find_all(['section','appendix']):
+        for s_candidate in self.soup.find_all(['section', 'appendix']):
             if s_candidate.name == 'appendix':
                 break
             if s_candidate.string.lower() == 'conclusion':
@@ -192,7 +210,7 @@ class StructureExtraction:
 
         return self._get_citations_by_sections(get_citation_pos)
 
-    def _process_fulltext(self,section_title: str,section_start: int, text: str, transform_cits, mask_citations=True):
+    def _process_fulltext(self, section_title: str, section_start: int, text: str, transform_cits, mask_citations=True):
         citations_pos = self.get_citations_with_pos_by_section()[section_title]
         if mask_citations:
             for cit_pos, cit_len, cit_key in citations_pos:
@@ -215,8 +233,9 @@ class StructureExtraction:
                 result_sentences = []
                 sentences = nltk.sent_tokenize(paragraph)
                 for sentence in sentences:
-                    cits_in_sentence = [c for c in citations_pos if c[0]-section_start > offset and c[0]-section_start < offset +len(sentence)]
-                    result_sentences.append((re.sub('[X]{4,}','',sentence),transform_cits(cits_in_sentence)))
+                    cits_in_sentence = [c for c in citations_pos if
+                                        c[0] - section_start > offset and c[0] - section_start < offset + len(sentence)]
+                    result_sentences.append((re.sub('[X]{4,}', '', sentence), transform_cits(cits_in_sentence)))
                     offset += len(sentence)
 
                 result_paragraphs.append(result_sentences)
@@ -226,10 +245,10 @@ class StructureExtraction:
             return result_paragraphs
         else:
             # Only return fulltext
-            text = re.sub('[X]{4,}','',text)
+            text = re.sub('[X]{4,}', '', text)
             return text
 
-    def _get_section_lines(self,transform_cits):
+    def _get_section_lines(self, transform_cits):
         if self.soup is None:
             raise ValueError("No file loaded")
 
@@ -262,9 +281,9 @@ class StructureExtraction:
                 section_text = section_text[strange_offset:] + f.read(strange_offset)
 
                 # mask section tag so that it gets later removed
-                section_text =str('X' * tag_len) + section_text[tag_len:]
+                section_text = str('X' * tag_len) + section_text[tag_len:]
 
-                result = self._process_fulltext(curr_section, start_pos, section_text,transform_cits,True)
+                result = self._process_fulltext(curr_section, start_pos, section_text, transform_cits, True)
 
                 section_dict[curr_section] = result
 
@@ -296,7 +315,7 @@ if __name__ == "__main__":
     extraction = StructureExtraction(DATA_DIR)
 
     valid_ids = extraction.get_valid_ids()
-    #json.dump(valid_ids, open('valid_ids','w'))
+    # json.dump(valid_ids, open('valid_ids','w'))
 
     print(f"Found {len(valid_ids)} tex files with corresponding bibtex entry")
 
@@ -306,7 +325,6 @@ if __name__ == "__main__":
         if not extraction.set_as_active(valid_ids[idx]):
             idx += 1
             continue
-
 
         section_list = extraction.get_section_titles()
 
