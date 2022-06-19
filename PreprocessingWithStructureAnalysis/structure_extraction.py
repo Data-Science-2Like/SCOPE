@@ -296,6 +296,8 @@ if __name__ == "__main__":
     extraction = StructureExtraction(DATA_DIR)
 
     valid_ids = extraction.get_valid_ids()
+    #json.dump(valid_ids, open('valid_ids','w'))
+
     print(f"Found {len(valid_ids)} tex files with corresponding bibtex entry")
 
     # Find a document which can be loaded
