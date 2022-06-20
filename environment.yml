@@ -17,3 +17,4 @@ dependencies:
       - simpletransformers~=0.63.7
       - bibtexparser==1.2.0
       - anytree==2.8.0
+      - rank-bm25==0.2.2
