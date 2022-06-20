@@ -70,12 +70,12 @@ class StructureExtraction:
         try:
             self.soup = TexSoup(open(tex_file), tolerance=1)
             self._analyze_structure()
+            self.active = str(id)
             self._filter_unwanted_stuff()
             tmp_file = self.tmp_dir / str(id + ".tex")
             with open(tmp_file, 'w') as f:
                 f.write(str(self.soup))
             self.bib = bibtexparser.load(open(bib_file))
-            self.active = str(id)
             return True
         except:
             print(f"Could not load document {tex_file}")
@@ -109,6 +109,19 @@ class StructureExtraction:
         # TODO parapgraph structure gets lost
 
         try:
+            #ens = self.soup.find_all(['enumerate','itemize'])
+            # concatenate all children together
+            #for e in ens:
+            #    conc = ' '.join([str(c.expr) for c in e.children])
+            #    e.replace_with(TexNode(TexText(conc)))
+
+            # now reload tex Soup to ensure that removed itemize, enumerate gets read correctly
+            #tmp_file = self.tmp_dir / str(self.active + ".tex")
+            #with open(tmp_file, 'w') as f:
+            #    f.write(str(self.soup))
+            #self.soup = TexSoup(open(tmp_file), tolerance=1)
+
+
             for item in self.soup.document:
                 if type(item) == TexNode and item.name in unwanted_env:
                     item.delete()
