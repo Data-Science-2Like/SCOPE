@@ -7,12 +7,22 @@ import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pathlib import Path
 from torch.autograd import Variable
+from gensim.models.keyedvectors import KeyedVectors
 
 from Prefetcher.prefetcher import Prefetcher
-from Prefetcher.condition import _check_conditions
+from Prefetcher.condition import _check_conditions, ConditionList, PretrainedWordEmbeddingCondition,CategoricalCondition
+from Prefetcher.citeworth import load_dataset
 
 import scipy.sparse as sp
+
+W2V_PATH = Path("./vectors/GoogleNews-vectors-negative300.bin.gz")
+W2V_IS_BINARY = True
+
+print("Loading keyed vectors")
+VECTORS = KeyedVectors.load_word2vec_format(str(W2V_PATH), binary=W2V_IS_BINARY)
+print("Done")
 
 def sample_categorical(size):
     batch_size, n_classes = size
@@ -47,11 +57,16 @@ AE_PARAMS = {
     'n_code': 50,
     'n_epochs': 20,
     'batch_size': 5000,
-    'n_hidden': 160,
+    'n_hidden': 100,
     'normalize_inputs': True,
     'gen_lr' : 0.001,
     'reg_lr' : 0.001
 }
+
+CONDITIONS = ConditionList([
+    ('title', PretrainedWordEmbeddingCondition(VECTORS)),
+    #('section_title', CategoricalCondition(embedding_dim=32, reduce='sum', sparse=False, embedding_on_gpu=True))
+])
 
 
 TINY = 1e-12
@@ -60,9 +75,10 @@ class AAERecommender(Prefetcher):
     def __init__(self, model_path: str, use_section_info):
         super().__init__()
         self.use_section_info = use_section_info
-        self.conditions = None
+        self.conditions = CONDITIONS
         self.model_params = None
         self.model = AdversarialAutoEncoder(conditions=self.conditions, **AE_PARAMS)
+        self.model.load_model(model_path)
         print(self.model)
 
     def __str__(self):
@@ -242,15 +258,48 @@ class AdversarialAutoEncoder():
         self.gen_lr, self.reg_lr = gen_lr, reg_lr
         self.n_epochs = n_epochs
 
-        self.enc, self.dec, self.disc = None, None, None
-        self.enc_optim, self.dec_optim = None, None
-        self.gen_optim, self.disc_optim = None, None
         self.normalize_inputs = normalize_inputs
 
         self.dropout = dropout
         self.activation = activation
 
         self.conditions = conditions
+
+        self.prediction_size = 107774
+
+        self.use_condition = True
+
+        if self.use_condition:
+            code_size = self.n_code + self.conditions.size_increment()
+            print("Using condition, code size:", code_size)
+        else:
+            code_size = self.n_code
+            print("Not using condition, code size:", code_size)
+
+        self.enc = Encoder(self.prediction_size, self.n_hidden, self.n_code,
+                           final_activation=self.encoder_activation,
+                           normalize_inputs=self.normalize_inputs,
+                           activation=self.activation,
+                           dropout=self.dropout)
+        self.dec = Decoder(code_size, self.n_hidden, self.prediction_size,
+                           activation=self.activation, dropout=self.dropout)
+
+        self.disc = Discriminator(self.n_code, self.n_hidden,
+                                  dropout=self.dropout,
+                                  activation=self.activation)
+
+        if torch.cuda.is_available():
+            self.enc = self.enc.cuda()
+            self.dec = self.dec.cuda()
+            self.disc = self.disc.cuda()
+        optimizer_gen = TORCH_OPTIMIZERS[self.optimizer]
+        # Reconstruction
+        self.enc_optim = optimizer_gen(self.enc.parameters(), lr=self.gen_lr)
+        self.dec_optim = optimizer_gen(self.dec.parameters(), lr=self.gen_lr)
+        # Regularization
+        self.gen_optim = optimizer_gen(self.enc.parameters(), lr=self.reg_lr)
+        self.disc_optim = optimizer_gen(self.disc.parameters(), lr=self.reg_lr)
+
 
     def __str__(self):
         desc = "Adversarial Autoencoder"
@@ -282,8 +331,8 @@ class AdversarialAutoEncoder():
         self.dec.zero_grad()
         self.disc.zero_grad()
 
-    def load_model(self, folder='prefetcher', filename='test'):
-        filepath = os.path.join(folder, filename)
+    def load_model(self, filepath):
+        #filepath = os.path.join(folder, filename)
         state = torch.load(filepath)
         self.enc.load_state_dict(state['enc'])
         self.dec.load_state_dict(state['dec'])
@@ -389,3 +438,12 @@ class AdversarialAutoEncoder():
                 X_reconstuction = X_reconstuction.data.cpu().numpy()
                 pred.append(X_reconstuction)
         return np.vstack(pred)
+
+if __name__ == '__main__':
+
+    prefetcher = AAERecommender('trained/aae.torch',False)
+
+    bags, x_train = load_dataset(2019,2018,2)
+
+
+    print(prefetcher)

@@ -1,4 +1,3 @@
-
 import json
 import random
 
@@ -12,7 +11,7 @@ import numpy as np
 CITE5_PATH = Path("./citeworth/aae_recommender_with_section_info_v5.jsonl")
 
 SYNONYM_DICT = {
-    "abstract" : "abstract",
+    "abstract": "abstract",
     "introduction": "introduction",
     "intro": "introduction",
     "overview": "introduction",
@@ -30,13 +29,13 @@ SYNONYM_DICT = {
     "theory basics": "theory basics",
     "techniques": "techniques",
     "experiment": "experiment",
-    "experiments" : "experiment",
+    "experiments": "experiment",
     "experiments and results": "experiment",
     "experimental result": "experiment",
     "experimental results": "experiment",
     "experimental setup": "experiment",
     "result": "experiment",
-    "results" : "experiment",
+    "results": "experiment",
     "evaluation": "experiment",
     "performance evaluation": "experiment",
     "experiment and result": "experiment",
@@ -58,18 +57,18 @@ SYNONYM_DICT = {
     "data set": "data set",
     "solution": "solution",
     "discussion": "discussion",
-    "discussions" : "discussion",
+    "discussions": "discussion",
     "limitation": "discussion",
-    "limitations" : "discussion",
+    "limitations": "discussion",
     "discussion and conclusion": "discussion",
-    "discussion and conclusions" : "discussion",
+    "discussion and conclusions": "discussion",
     "result and discussion": "discussion",
     "results and discussion": "discussion",
     "results and discussions": "discussion",
     "results and analysis": "discussion",
     "future work": "conclusion",
     "conclusion": "conclusion",
-    "conclusions" : "conclusion",
+    "conclusions": "conclusion",
     "summary": "conclusion",
     "conclusion and outlook": "conclusion",
     "conclusion and future work": "conclusion",
@@ -79,12 +78,13 @@ SYNONYM_DICT = {
 
 PAPER_INFO = ['title', 'venue', 'author']
 
-def rename_key(data, old : str, new :str) -> None:
+
+def rename_key(data, old: str, new: str) -> None:
     for entry in data:
         entry[new] = entry.pop(old)
 
 
-def load_citeworth(path, use_synonym_dict = True):
+def load_citeworth(path, use_synonym_dict=True):
     """ Loads a single file """
     print("Loading citworth data from", path)
     data = list()
@@ -92,12 +92,12 @@ def load_citeworth(path, use_synonym_dict = True):
         for i, l in enumerate(f):
             data.append(json.loads(l.strip()))
 
-    rename_key(data,'paper_title','title')
+    rename_key(data, 'paper_title', 'title')
     # rename_key(data,'paper_authors','authors')
-    rename_key(data, 'paper_year','year')
-    #rename_key(data, 'outgoing_citations', 'references')
+    rename_key(data, 'paper_year', 'year')
+    # rename_key(data, 'outgoing_citations', 'references')
     rename_key(data, 'outgoing_citations_in_paragraph', 'references')
-    rename_key(data,'paper_id','id')
+    rename_key(data, 'paper_id', 'id')
 
     # apply synonym dict
     if use_synonym_dict:
@@ -115,6 +115,7 @@ def load_citeworth(path, use_synonym_dict = True):
 
     return data
 
+
 def aggregate_paper_info(paper, attributes):
     acc = []
     for attribute in attributes:
@@ -123,7 +124,7 @@ def aggregate_paper_info(paper, attributes):
     return ' '.join(acc)
 
 
-def unpack_papers(papers, aggregate=None,end_year=-1):
+def unpack_papers(papers, aggregate=None, end_year=-1):
     """
     Unpacks list of papers in a way that is compatible with our Bags dataset
     format. It is not mandatory that papers are sorted.
@@ -204,8 +205,8 @@ def unpack_papers(papers, aggregate=None,end_year=-1):
 
     log(
         "Metadata-fields' frequencies: references={}, title={}, authors={}, venue={}, year={}, sections={} one-reference={}"
-        .format(ref_cnt / len(papers), title_cnt / len(papers), author_cnt / len(papers), venue_cnt / len(papers),
-                year_cnt / len(papers), section_cnt / len(papers), one_ref_cnt / len(papers)))
+            .format(ref_cnt / len(papers), title_cnt / len(papers), author_cnt / len(papers), venue_cnt / len(papers),
+                    year_cnt / len(papers), section_cnt / len(papers), one_ref_cnt / len(papers)))
 
     # bag_of_refs and ids should have corresponding indices
     # In side info the id is the key
@@ -213,7 +214,8 @@ def unpack_papers(papers, aggregate=None,end_year=-1):
     return bags_of_refs, ids, {"title": side_info, "year": years, "author": authors, "venue": venue,
                                "section_title": sections}
 
-def load_dataset(year, min_count=None, outfile=None, drop=1):
+
+def load_dataset(year, val_year=None, min_count=None, drop=1):
     """ Main function for training and evaluating AAE methods on DBLP data """
     dataset = 'Our S2ORC'
     use_sdict = True
@@ -234,6 +236,12 @@ def load_dataset(year, min_count=None, outfile=None, drop=1):
     random.seed(seed)
     np.random.seed(seed)
 
+    train_set, test_set, = None, None
+    if val_year is not None and val_year > 0:
+        train_set, _, test_set = bags.train_val_test_split(val_year=val_year,
+                                                           test_year=year)
+    else:
+        train_set, test_set = bags.train_test_split(on_year=year)
     train_set, test_set = bags.train_test_split(on_year=year)
 
     log("=" * 80)
