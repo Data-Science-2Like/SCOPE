@@ -6,6 +6,8 @@ from TexSoup.data import TexText
 from nltk.stem import WordNetLemmatizer
 from tree import *
 
+from id_translator import IdTranslator
+
 import nltk
 import bibtexparser
 
@@ -35,6 +37,7 @@ class StructureExtraction:
         self.lemmatizer = WordNetLemmatizer()
         # self.tmp_dir = Path(tempfile.mkdtemp())
         self.tmp_dir = Path('C:\\Users\\Simon\\Desktop\\test2')
+        self.translator = IdTranslator()
         with open(SYNONYM_DICT) as f:
             self.s_dict = json.load(f)
         with open(TEMPLATES) as f:
@@ -69,7 +72,7 @@ class StructureExtraction:
         bib_file = self.data_dir / str(id + ".bib")
         try:
             self.soup = TexSoup(open(tex_file), tolerance=1)
-            self._analyze_structure()
+            #self._analyze_structure()
             self.active = str(id)
             self._filter_unwanted_stuff()
             tmp_file = self.tmp_dir / str(id + ".tex")
@@ -213,8 +216,11 @@ class StructureExtraction:
                     # is a citation
                     # TODO issue when multiple citations in citation marker
                     cite_obj = transform_citation(elm)
-                    cite_dict[cur_sec].append(cite_obj)
-                except:
+                    if isinstance(cite_obj, list):
+                        cite_dict[cur_sec].extend(cite_obj)
+                    else:
+                        cite_dict[cur_sec].append(cite_obj)
+                except Exception as e:
                     # some error in transfor_citation occured
                     print(f"Error on transform_citation {elm} in document {self.active}")
 
@@ -225,7 +231,9 @@ class StructureExtraction:
             raise ValueError("No file loaded")
 
         def get_bib_entry(elm):
-            return self.bib.entries_dict[str(elm.string)]
+            keys = str(elm.args[-1])[1:-1].split(',')
+            bib_entries = [self.bib.entries_dict[str(x.strip())] for x in keys]
+            return self.translator.query(bib_entries)
 
         return self._get_citations_by_sections(get_bib_entry)
 
@@ -234,8 +242,8 @@ class StructureExtraction:
             raise ValueError("No file loaded")
 
         def get_citation_pos(elm):
-            # return self.soup.char_pos_to_line(elm.position)
-            return elm.position, len(str(elm.expr)), str(elm.string)  # use raw position for file seek
+            keys = str(elm.args[-1])[1:-1].split(',')
+            return elm.position, len(str(elm.expr)), keys  # use raw position for file seek
 
         return self._get_citations_by_sections(get_citation_pos)
 
@@ -333,13 +341,17 @@ class StructureExtraction:
     def get_section_text_cit_keys(self):
 
         def to_keys(cits):
-            return [c[2] for c in cits]
+            cit_keys = [k for c in cits for k in c[2]]
+            bib_entries = [self.bib.entries_dict[k] if k in self.bib.entries_dict.keys() else None for k in cit_keys]
+            return self.translator.query(bib_entries)
 
         return self._get_section_lines(to_keys)
 
 
 if __name__ == "__main__":
     # Test the capabilities of structure extraction
+
+    #translator = IdTranslator()
 
     extraction = StructureExtraction(DATA_DIR)
 
@@ -359,11 +371,19 @@ if __name__ == "__main__":
 
         # citation_pos = extraction.get_citations_with_pos_by_section()
 
+        # citations = extraction.get_citations_by_sections()
+
+        #translated = dict()
+        #
+        #for key, value in citations.items():
+        #    translated[key] = translator.query(value)
+
+
         sentences = extraction.get_section_text_citeworth()
-        print(sentences)
+        #print(sentences)
 
         sentences2 = extraction.get_section_text_cit_keys()
-        print(sentences2)
+        #print(sentences2)
 
         # Map<List<Tuple<str,List<str,Bool>>>> CiteWorth
 
