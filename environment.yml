@@ -9,7 +9,12 @@ dependencies:
   - pip=20.1.1
   - python=3.8.3
   - pytorch=1.10.1
+  - texsoup=0.3.1
+  - nltk=3.4.5
   - pip:
       - gensim==3.8.3
       - transformers==4.2.1
       - simpletransformers~=0.63.7
+      - bibtexparser==1.2.0
+      - anytree==2.8.0
+      - rank-bm25==0.2.2
