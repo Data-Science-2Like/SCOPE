@@ -4,13 +4,17 @@ from rank_bm25 import BM25Okapi
 import json
 import re
 import numpy as np
+import os
 PAPER_TITLES = 'pipeline_title_id_v5.json'
 
 
 class IdTranslator:
 
     def __init__(self):
-        with open(PAPER_TITLES,'r') as f:
+        self.directory = os.path.dirname(os.path.realpath(__file__))
+        self.papers_path = os.path.join(self.directory,PAPER_TITLES)
+
+        with open(self.papers_path,'r') as f:
             self.title_dict = json.load(f)
             self.title_list = list(self.title_dict.keys())
             self.tokenized_corpus = [e.split(' ') for e in self.title_list]
