@@ -79,6 +79,8 @@ class AAERecommender(Prefetcher):
         self.model_params = None
         self.model = AdversarialAutoEncoder(conditions=self.conditions, **AE_PARAMS)
         self.model.load_model(model_path)
+        bags, x_train = load_dataset(2019, 2018, 2)
+        self.bags = bags
         print(self.model)
 
     def __str__(self):
@@ -91,11 +93,26 @@ class AAERecommender(Prefetcher):
         return desc
 
     def predict(self, already_cited: List[str], section: str, k: int) -> List[str]:
-        pass
+
+        # transform into vocab index for aae recommender
+        internal_q = [[self.bags.vocab[id] for id in already_cited]]
+
+        pred = self._predict(internal_q)
+
+
+        # sort predictions by their score
+        preds_sorted = sorted(range(len(pred)), key=lambda i: pred[i], reverse=True)
+
+        # get keys for predictions index
+        return_keys = [self.bags.index2token[i] for i in preds_sorted[:k]]
+
+        return return_keys
+
 
     def _predict(self, test_set):
         ### DONE Adapt to generic condition ###
-        X = test_set.tocsr()
+        #X = test_set.tocsr()
+        X = self.bags.tocsr(test_set)
         if self.conditions:
             condition_data_raw = test_set.get_attributes(self.conditions.keys())
             # Important to not call fit here, but just transform
