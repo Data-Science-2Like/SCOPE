@@ -4,14 +4,15 @@ from TexSoup import TexSoup, TexNode
 from TexSoup.data import TexText
 
 from nltk.stem import WordNetLemmatizer
-from tree import *
+from .tree import *
 
-from id_translator import IdTranslator
+from .id_translator import IdTranslator
 
 import nltk
 import bibtexparser
 
 import json
+import os
 
 import re
 
@@ -29,6 +30,8 @@ nltk.download('omw-1.4')
 class StructureExtraction:
 
     def __init__(self, data_dir):
+        self.dir = os.path.dirname(os.path.realpath(__file__))
+
         self.data_dir = Path(data_dir)
         self.valid_ids = []
         self.soup = None
@@ -38,9 +41,9 @@ class StructureExtraction:
         # self.tmp_dir = Path(tempfile.mkdtemp())
         self.tmp_dir = Path('C:\\Users\\Simon\\Desktop\\test2')
         self.translator = IdTranslator()
-        with open(SYNONYM_DICT) as f:
+        with open(os.path.join(self.dir,SYNONYM_DICT)) as f:
             self.s_dict = json.load(f)
-        with open(TEMPLATES) as f:
+        with open(os.path.join(self.dir,TEMPLATES)) as f:
             self.templates = json.load(f)
         self.tree = Tree(['*'], None)
         for t in self.templates:
@@ -94,12 +97,12 @@ class StructureExtraction:
 
     def _filter_unwanted_stuff(self):
         unwanted_env = list()
-        with open(UNWANTED_ENVS,'r') as f:
+        with open(os.path.join(self.dir,UNWANTED_ENVS),'r') as f:
             unwanted_env =  [l.strip() for l in f]
         # TODO is center only used for tables?
 
         unwanted_cmds = list()
-        with open(UNWANTED_CMDS, 'r') as f:
+        with open(os.path.join(self.dir,UNWANTED_CMDS), 'r') as f:
             unwanted_cmds = [l.strip() for l in f]
 
         keep_content = ['emph', 'textit', 'texttt', 'textbf']
