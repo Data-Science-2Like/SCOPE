@@ -269,4 +269,4 @@ def load_dataset(year, val_year=None, min_count=None, drop=1):
 
     # just store for not recomputing the stuff
     x_test = lists2sparse(noisy, train_set.size(1)).tocsr(copy=False)
-    return bags, x_test
+    return train_set, x_test

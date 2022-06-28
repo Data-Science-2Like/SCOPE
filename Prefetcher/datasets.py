@@ -202,7 +202,7 @@ class Bags(object):
         """ Computes the number of (non-zero) elements """
         return sum(map(len, self.data))
 
-    def get_single_attribute(self, attribute):
+    def get_single_attribute(self, attribute, owners=None):
         # TODO: rename to get_attribute() again? at least check for all other calls
         # TODO: find representation in owner_attributes for doctex
         """
@@ -221,13 +221,17 @@ class Bags(object):
 
 
         attribute_l = []
-        for owner in self.bag_owners:
+
+        if owners is None:
+            owners = self.bag_owners
+
+        for owner in owners:
             attribute_l.append(self.owner_attributes[attribute][owner])
 
         return attribute_l
 
-    def get_attributes(self, attribute_list):
-        return [self.get_single_attribute(a) for a in attribute_list]
+    def get_attributes(self, attribute_list, owners=None):
+        return [self.get_single_attribute(a,owners) for a in attribute_list]
 
     def to_dict(self):
         return dict(enumerate(self.data))

@@ -95,9 +95,19 @@ class AAERecommender(Prefetcher):
     def predict(self, already_cited: List[str], section: str, k: int) -> List[str]:
 
         # transform into vocab index for aae recommender
-        internal_q = [[self.bags.vocab[id] for id in already_cited]]
+        #internal_q = [[self.bags.vocab[id] for id in already_cited]]
+        internal_q = []
+        not_found = []
+        for id in already_cited:
+            if id in self.bags.vocab.keys():
+                internal_q.append(self.bags.vocab[id])
+            else:
+                not_found.append(id)
 
-        pred = self._predict(internal_q)
+        if len(not_found) > 0:
+            print(f"Warning: Could not find the following cited keys: {not_found}")
+
+        pred = self._predict([internal_q])
 
 
         # sort predictions by their score
@@ -114,9 +124,10 @@ class AAERecommender(Prefetcher):
         #X = test_set.tocsr()
         X = self.bags.tocsr(test_set)
         if self.conditions:
-            condition_data_raw = test_set.get_attributes(self.conditions.keys())
+            condition_data_raw = self.bags.get_attributes(self.conditions.keys(), test_set[0])
+            condition_data_raw = []
             # Important to not call fit here, but just transform
-            condition_data = self.conditions.transform(condition_data_raw)
+            condition_data = self.conditions.fit_transform(condition_data_raw)
         else:
             condition_data = None
 
