@@ -40,5 +40,3 @@ class Reranker:
         else:
             candidate_paper_rep = candidate_paper["title"] + " " + candidate_paper["abstract"]
         return candidate_paper_rep
-
-    # TODO: perform truncation preprocessing if required
