@@ -19,20 +19,20 @@ class LocalBM25(Reranker, BM25):
         self.corpus = {}
         for paper in all_papers:
             self.corpus[paper["id"]] = self._create_candidate_paper_representation(paper, use_year)
+        self.paperid_to_corpusidx = {paper_id: corpus_idx for corpus_idx, paper_id in enumerate(self.corpus.keys())}
 
         word_corpus = [value.split() for value in self.corpus.values()]
         BM25.__init__(self, word_corpus, k1, b, epsilon)
 
     def predict(self, citation_context: Dict[str, str], candidate_papers: List[Dict[str, str]],
-                citation_context_fields: List[str] = ("title", "abstract", "citation_context"),
+                citation_context_fields: List[str] = ("citation_context", "title", "abstract"),
                 use_year: bool = None) -> List[Dict[str, str]]:
         # process the input
         query = self._create_citation_context_representation(citation_context, citation_context_fields)
         word_query = query.split()
 
         # perform the prediction
-        paperid_to_corpusidx = {paper_id: corpus_idx for corpus_idx, paper_id in enumerate(self.corpus.keys())}
-        candidate_papers_corpusidx = [paperid_to_corpusidx[paper["id"]] for paper in candidate_papers]
+        candidate_papers_corpusidx = [self.paperid_to_corpusidx[paper["id"]] for paper in candidate_papers]
         ranking_scores = [self.get_score(word_query, idx) for idx in candidate_papers_corpusidx]
 
         # process the output

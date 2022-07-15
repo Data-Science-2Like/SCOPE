@@ -25,7 +25,7 @@ class Transformer_Reranker(Reranker):
         self.model = ClassificationModel(model_name, model_path, args=model_args)
 
     def predict(self, citation_context: Dict[str, str], candidate_papers: List[Dict[str, str]],
-                citation_context_fields: List[str] = ("title", "abstract", "citation_context"),
+                citation_context_fields: List[str] = ("citation_context", "title", "abstract"),
                 use_year: bool = None) -> List[Dict[str, str]]:
         # process the input
         if use_year is None:

@@ -23,14 +23,22 @@ class Reranker:
         raise NotImplementedError
 
     @staticmethod
-    def _create_citation_context_representation(citation_context: Dict[str, str], citation_context_fields: List[str]):
+    def _create_citation_context_representation(citation_context: Dict[str, str], citation_context_fields: List[str],
+                                                truncated_paragraph=None):
         citation_context_rep = ""
         for field in citation_context_fields:
-            citation_context_rep += citation_context[field] + " "
+            if field == "paragraph" and truncated_paragraph is not None:
+                citation_context_rep += truncated_paragraph + " "
+            else:
+                citation_context_rep += citation_context[field] + " "
         return citation_context_rep[:-1]
 
     @staticmethod
     def _create_candidate_paper_representation(candidate_paper: Dict[str, str], use_year: bool):
-        candidate_paper_rep = candidate_paper["title"] + " " + candidate_paper["abstract"]
         if use_year:
-            candidate_paper_rep += " " + candidate_paper["year"]
+            candidate_paper_rep = candidate_paper["title"] + " " + candidate_paper["year"] + " " + candidate_paper["abstract"]
+        else:
+            candidate_paper_rep = candidate_paper["title"] + " " + candidate_paper["abstract"]
+        return candidate_paper_rep
+
+    # TODO: perform truncation preprocessing if required
