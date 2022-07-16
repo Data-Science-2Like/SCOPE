@@ -27,6 +27,11 @@ class Transformer_Reranker(Reranker):
     def predict(self, citation_context: Dict[str, str], candidate_papers: List[Dict[str, str]],
                 citation_context_fields: List[str] = ("citation_context", "title", "abstract"),
                 use_year: bool = None) -> List[Dict[str, str]]:
+        # mask citation context in paragraph
+        if "paragraph" in citation_context_fields:
+            citation_context["paragraph"] = citation_context["paragraph"].replace(citation_context["citation_context"],
+                                                                                  "TARGETSENT")
+
         # process the input
         if use_year is None:
             use_year = "section" in citation_context_fields
