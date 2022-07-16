@@ -41,9 +41,9 @@ class StructureExtraction:
         # self.tmp_dir = Path(tempfile.mkdtemp())
         self.tmp_dir = Path('C:\\Users\\Simon\\Desktop\\test2')
         self.translator = IdTranslator()
-        with open(os.path.join(self.dir,SYNONYM_DICT)) as f:
+        with open(os.path.join(self.dir, SYNONYM_DICT)) as f:
             self.s_dict = json.load(f)
-        with open(os.path.join(self.dir,TEMPLATES)) as f:
+        with open(os.path.join(self.dir, TEMPLATES)) as f:
             self.templates = json.load(f)
         self.tree = Tree(['*'], None)
         for t in self.templates:
@@ -75,7 +75,7 @@ class StructureExtraction:
         bib_file = self.data_dir / str(id + ".bib")
         try:
             self.soup = TexSoup(open(tex_file), tolerance=1)
-            #self._analyze_structure()
+            # self._analyze_structure()
             self.active = str(id)
             self._filter_unwanted_stuff()
             tmp_file = self.tmp_dir / str(id + ".tex")
@@ -97,17 +97,17 @@ class StructureExtraction:
 
     def _filter_unwanted_stuff(self):
         unwanted_env = list()
-        with open(os.path.join(self.dir,UNWANTED_ENVS),'r') as f:
-            unwanted_env =  [l.strip() for l in f]
+        with open(os.path.join(self.dir, UNWANTED_ENVS), 'r') as f:
+            unwanted_env = [l.strip() for l in f]
         # TODO is center only used for tables?
 
         unwanted_cmds = list()
-        with open(os.path.join(self.dir,UNWANTED_CMDS), 'r') as f:
+        with open(os.path.join(self.dir, UNWANTED_CMDS), 'r') as f:
             unwanted_cmds = [l.strip() for l in f]
 
         keep_content = ['emph', 'textit', 'texttt', 'textbf']
 
-        #small_cmds = ['_','#','%']
+        # small_cmds = ['_','#','%']
 
         # TODO itemize must be kept
         # TODO what about footnotes
@@ -115,18 +115,17 @@ class StructureExtraction:
         # TODO parapgraph structure gets lost
 
         try:
-            #ens = self.soup.find_all(['enumerate','itemize'])
+            # ens = self.soup.find_all(['enumerate','itemize'])
             # concatenate all children together
-            #for e in ens:
+            # for e in ens:
             #    conc = ' '.join([str(c.expr) for c in e.children])
             #    e.replace_with(TexNode(TexText(conc)))
 
             # now reload tex Soup to ensure that removed itemize, enumerate gets read correctly
-            #tmp_file = self.tmp_dir / str(self.active + ".tex")
-            #with open(tmp_file, 'w') as f:
+            # tmp_file = self.tmp_dir / str(self.active + ".tex")
+            # with open(tmp_file, 'w') as f:
             #    f.write(str(self.soup))
-            #self.soup = TexSoup(open(tmp_file), tolerance=1)
-
+            # self.soup = TexSoup(open(tmp_file), tolerance=1)
 
             for item in self.soup.document:
                 if type(item) == TexNode and item.name in unwanted_env:
@@ -135,7 +134,7 @@ class StructureExtraction:
                     item.delete()
                 if type(item) == TexNode and item.name in keep_content:
                     item.replace_with(TexNode(TexText(item.string)))
-                #if type(item) == TexNode and item.name in small_cmds:
+                # if type(item) == TexNode and item.name in small_cmds:
                 #    item.replace_with(TexNode(TexText(' ')))
             return True
         except Exception as e:
@@ -250,7 +249,8 @@ class StructureExtraction:
 
         return self._get_citations_by_sections(get_citation_pos)
 
-    def _process_fulltext(self, section_title: str, section_start: int, text: str, transform_cits, mask_citations=True):
+    def _process_fulltext(self, section_title: str, section_start: int, text: str, transform_cits, mask_citations=True,
+                          split_paragraphs=True):
         citations_pos = self.get_citations_with_pos_by_section()[section_title]
         if mask_citations:
             for cit_pos, cit_len, cit_key in citations_pos:
@@ -259,7 +259,6 @@ class StructureExtraction:
                 # don't change length of text here, so that citation offsets are still valid
                 text = text[:relative_pos] + str('X' * cit_len) + text[relative_pos + cit_len:]
 
-        split_paragraphs = True
         if split_paragraphs:
             offset = 0
             result_paragraphs = []
@@ -288,7 +287,7 @@ class StructureExtraction:
             text = re.sub('[X]{4,}', '', text)
             return text
 
-    def _get_section_lines(self, transform_cits):
+    def _get_section_lines(self, transform_cits, split_paragraphs = True):
         if self.soup is None:
             raise ValueError("No file loaded")
 
@@ -323,7 +322,7 @@ class StructureExtraction:
                 # mask section tag so that it gets later removed
                 section_text = str('X' * tag_len) + section_text[tag_len:]
 
-                result = self._process_fulltext(curr_section, start_pos, section_text, transform_cits, True)
+                result = self._process_fulltext(curr_section, start_pos, section_text, transform_cits, True, split_paragraphs)
 
                 section_dict[curr_section] = result
 
@@ -350,11 +349,16 @@ class StructureExtraction:
 
         return self._get_section_lines(to_keys)
 
+    def get_section_text_paragraph(self):
+        def to_citeworth(cits):
+            return len(cits) > 0
+
+        return self._get_section_lines(to_citeworth,False)
 
 if __name__ == "__main__":
     # Test the capabilities of structure extraction
 
-    #translator = IdTranslator()
+    # translator = IdTranslator()
 
     extraction = StructureExtraction(DATA_DIR)
 
@@ -376,17 +380,16 @@ if __name__ == "__main__":
 
         # citations = extraction.get_citations_by_sections()
 
-        #translated = dict()
+        # translated = dict()
         #
-        #for key, value in citations.items():
+        # for key, value in citations.items():
         #    translated[key] = translator.query(value)
 
-
         sentences = extraction.get_section_text_citeworth()
-        #print(sentences)
+        # print(sentences)
 
         sentences2 = extraction.get_section_text_cit_keys()
-        #print(sentences2)
+        # print(sentences2)
 
         # Map<List<Tuple<str,List<str,Bool>>>> CiteWorth
 
