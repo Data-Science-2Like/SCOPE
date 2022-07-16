@@ -11,7 +11,7 @@ class Transformer_Reranker(Reranker):
                  is_cased: bool = False, own_model_args: dict = None):
         super().__init__()
         if max_seq_length is None:
-            max_seq_length = 4096 if model_name is 'longformer' else 512
+            max_seq_length = 4096 if model_name == 'longformer' else 512
         model_args = {
             "eval_batch_size": 50,
             "do_lower_case": not is_cased,

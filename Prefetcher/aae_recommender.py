@@ -20,8 +20,11 @@ import scipy.sparse as sp
 W2V_PATH = Path("./vectors/GoogleNews-vectors-negative300.bin.gz")
 W2V_IS_BINARY = True
 
+
+curr_dir = os.path.dirname(os.path.realpath(__file__))
+
 print("Loading keyed vectors")
-VECTORS = KeyedVectors.load_word2vec_format(str(W2V_PATH), binary=W2V_IS_BINARY)
+VECTORS = KeyedVectors.load_word2vec_format(os.path.join(curr_dir,str(W2V_PATH)), binary=W2V_IS_BINARY)
 print("Done")
 
 def sample_categorical(size):
