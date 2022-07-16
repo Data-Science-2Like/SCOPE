@@ -36,7 +36,7 @@ class RandomBaseline(Prefetcher):
         if len(not_found) > 0:
             print(f"Warning: Could not find the following cited keys: {not_found}")
 
-        pred = self._predict([internal_q])
+        pred = self._predict([internal_q])[0]
 
 
         # sort predictions by their score
@@ -82,7 +82,7 @@ class Countbased(Prefetcher):
         if len(not_found) > 0:
             print(f"Warning: Could not find the following cited keys: {not_found}")
 
-        pred = self._predict([internal_q])
+        pred = self._predict([internal_q])[0]
 
 
         # sort predictions by their score
@@ -132,7 +132,7 @@ class MostPopular(Prefetcher):
         if len(not_found) > 0:
             print(f"Warning: Could not find the following cited keys: {not_found}")
 
-        pred = self._predict([internal_q])
+        pred = self._predict([internal_q])[0]
 
 
         # sort predictions by their score
@@ -195,7 +195,7 @@ class BM25Baseline(Prefetcher):
         if len(not_found) > 0:
             print(f"Warning: Could not find the following cited keys: {not_found}")
 
-        pred = self._predict([internal_q])
+        pred = self._predict([internal_q])[0]
 
 
         # sort predictions by their score

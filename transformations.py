@@ -1,6 +1,12 @@
-def preprocessing_to_prefetcher():
-    # TODO
-    raise NotImplementedError
+from typing import List,Dict, Tuple
+
+
+def preprocessing_to_prefetcher(raw_input: Dict[str,List[str]]):
+
+    results = []
+    for section in raw_input.keys():
+        results.append((raw_input[section],section))
+    return results
 
 
 def preprocessing_to_citeworthiness_detection():

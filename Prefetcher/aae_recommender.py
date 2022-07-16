@@ -107,7 +107,7 @@ class AAERecommender(Prefetcher):
         if len(not_found) > 0:
             print(f"Warning: Could not find the following cited keys: {not_found}")
 
-        pred = self._predict([internal_q])
+        pred = self._predict([internal_q])[0]
 
 
         # sort predictions by their score

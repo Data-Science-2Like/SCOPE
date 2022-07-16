@@ -1,5 +1,6 @@
 import json
 import random
+import os
 
 from Prefetcher.log import log
 from pathlib import Path
@@ -219,7 +220,10 @@ def load_dataset(year, val_year=None, min_count=None, drop=1):
     """ Main function for training and evaluating AAE methods on DBLP data """
     dataset = 'Our S2ORC'
     use_sdict = True
-    papers = load_citeworth(CITE5_PATH, use_sdict)
+
+    curr_dir = os.path.dirname(os.path.realpath(__file__))
+
+    papers = load_citeworth(os.path.join(curr_dir,CITE5_PATH), use_sdict)
 
     print("Unpacking {} data...".format(dataset))
     bags_of_papers, ids, side_info = unpack_papers(papers)
