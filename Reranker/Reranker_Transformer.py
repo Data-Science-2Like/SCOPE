@@ -75,8 +75,8 @@ class Transformer_Reranker(Reranker):
             # no truncation preprocessing required, longest-first truncation is sufficient
             return query_rep, document_rep
         # heuristic: one word = one token
-        query_len = len(query_rep.split(" "))
-        document_len = len(document_rep.split(" "))
+        query_len = len(query_rep.split())
+        document_len = len(document_rep.split())
         input_len = query_len + document_len
         max_input_len -= 3  # three special tokens (1x CLS, 2x SEP)
         truncation_len = input_len - max_input_len
@@ -114,7 +114,7 @@ class Transformer_Reranker(Reranker):
             if query_trunc_len > 0:
                 paragraph = query["paragraph"]
                 sent_idx = paragraph.find("TARGETSENT")
-                paragraph_len = len(paragraph.split(" "))
+                paragraph_len = len(paragraph.split())
                 paragraph_aimed_len_around = paragraph_len - query_trunc_len - 1
                 if paragraph_aimed_len_around <= 0:
                     raise Exception("We did not expect that the whole paragraph or even more needs to be truncated.")
