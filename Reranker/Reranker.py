@@ -13,9 +13,9 @@ class Reranker:
         :param citation_context: Representation for a single citation context.
                                  The Dictionary has to contain the keys listed in citation_context_fields.
                                  However, the following keys form a complete list:
-                                    "title", "abstract", "citation_context", "paragraph", "section"
+                                    "id", "title", "abstract", "citation_context", "paragraph", "section"
         :param candidate_papers: Each candidate paper is represented by a dictionary within the list.
-                                 Each dictionary has to contain the keys "title", "abstract" and (optionally) "year".
+                                 Each dictionary has to contain the keys "id", "title", "abstract" and (optionally) "year".
         :param citation_context_fields: The herein named fields are extracted in the given order from citation_context
                                             and serve as an input to the model.
         :param use_year: Whether to make use of the year key in candidate_papers as an input to the model.

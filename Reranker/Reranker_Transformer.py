@@ -7,14 +7,14 @@ from Reranker.Reranker import Reranker
 
 
 class Transformer_Reranker(Reranker):
-    def __init__(self, model_path: str, model_name: str = 'longformer', max_seq_length: int = None,
+    def __init__(self, model_path: str, model_name: str = 'bert', max_seq_length: int = None,
                  is_cased: bool = False, own_model_args: dict = None):
         super().__init__()
         if max_seq_length is None:
-            max_seq_length = 4096 if model_name is 'longformer' else 512
+            max_seq_length = 4096 if model_name == 'longformer' else 512
         model_args = {
             "eval_batch_size": 50,
-            "do_lower_case": not is_cased,
+            "do_lower_case": not is_cased or model_name == 'longformer',
             "max_seq_length": max_seq_length,
             "wandb_kwargs": {"mode": "offline"}
         }
@@ -40,10 +40,12 @@ class Transformer_Reranker(Reranker):
 
         # perform the prediction
         _, raw_outputs = self.model.predict(model_input)
-        ranking_scores = self._sigmoid(raw_outputs)
+        relevant_outputs = raw_outputs[:, 1]
+        ranking_scores = self._sigmoid(relevant_outputs)
 
         # process the output
         relevance_idx = np.argsort(-ranking_scores)
+        candidate_papers = np.asarray(candidate_papers)
         ranked_candidate_papers = [candidate_papers[i] for i in relevance_idx]
         return ranked_candidate_papers
 
