@@ -12,8 +12,8 @@ dependencies:
   - texsoup=0.3.1
   - nltk=3.4.5
   - pip:
-      - gensim==3.8.3
-      - simpletransformers~=0.63.4
-      - bibtexparser==1.2.0
       - anytree==2.8.0
+      - bibtexparser==1.2.0
+      - gensim==3.8.3
       - rank-bm25==0.2.2
+      - simpletransformers~=0.63.4

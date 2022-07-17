@@ -1,5 +1,7 @@
 from typing import List, Dict
 
+import regex as re
+
 
 class Reranker:
     def __init__(self):
@@ -11,9 +13,9 @@ class Reranker:
         :param citation_context: Representation for a single citation context.
                                  The Dictionary has to contain the keys listed in citation_context_fields.
                                  However, the following keys form a complete list:
-                                    "title", "abstract", "citation_context", "paragraph", "section"
+                                    "id", "title", "abstract", "citation_context", "paragraph", "section"
         :param candidate_papers: Each candidate paper is represented by a dictionary within the list.
-                                 Each dictionary has to contain the keys "title", "abstract" and (optionally) "year".
+                                 Each dictionary has to contain the keys "id", "title", "abstract" and (optionally) "year".
         :param citation_context_fields: The herein named fields are extracted in the given order from citation_context
                                             and serve as an input to the model.
         :param use_year: Whether to make use of the year key in candidate_papers as an input to the model.
@@ -31,7 +33,10 @@ class Reranker:
                 citation_context_rep += truncated_paragraph + " "
             else:
                 citation_context_rep += citation_context[field] + " "
-        return citation_context_rep[:-1]
+        citation_context_rep = citation_context_rep[:-1]
+        citation_context_rep = citation_context_rep.replace("\n", " ")
+        citation_context_rep = re.sub(" +", " ", citation_context_rep)
+        return citation_context_rep
 
     @staticmethod
     def _create_candidate_paper_representation(candidate_paper: Dict[str, str], use_year: bool):
@@ -39,4 +44,6 @@ class Reranker:
             candidate_paper_rep = candidate_paper["title"] + " " + candidate_paper["year"] + " " + candidate_paper["abstract"]
         else:
             candidate_paper_rep = candidate_paper["title"] + " " + candidate_paper["abstract"]
+        candidate_paper_rep = candidate_paper_rep.replace("\n", " ")
+        candidate_paper_rep = re.sub(" +", " ", candidate_paper_rep)
         return candidate_paper_rep

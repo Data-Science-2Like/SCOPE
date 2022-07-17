@@ -3,7 +3,7 @@ from typing import List, Dict
 import numpy as np
 
 from Reranker.Reranker import Reranker
-from gensim_summarization_bm25 import BM25
+from Reranker.gensim_summarization_bm25 import BM25
 
 
 class LocalBM25(Reranker, BM25):

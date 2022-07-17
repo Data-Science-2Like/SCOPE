@@ -7,14 +7,14 @@ from Reranker.Reranker import Reranker
 
 
 class Transformer_Reranker(Reranker):
-    def __init__(self, model_path: str, model_name: str = 'longformer', max_seq_length: int = None,
+    def __init__(self, model_path: str, model_name: str = 'bert', max_seq_length: int = None,
                  is_cased: bool = False, own_model_args: dict = None):
         super().__init__()
         if max_seq_length is None:
             max_seq_length = 4096 if model_name == 'longformer' else 512
         model_args = {
             "eval_batch_size": 50,
-            "do_lower_case": not is_cased,
+            "do_lower_case": not is_cased or model_name == 'longformer',
             "max_seq_length": max_seq_length,
             "wandb_kwargs": {"mode": "offline"}
         }
@@ -40,10 +40,12 @@ class Transformer_Reranker(Reranker):
 
         # perform the prediction
         _, raw_outputs = self.model.predict(model_input)
-        ranking_scores = self._sigmoid(raw_outputs)
+        relevant_outputs = raw_outputs[:, 1]
+        ranking_scores = self._sigmoid(relevant_outputs)
 
         # process the output
         relevance_idx = np.argsort(-ranking_scores)
+        candidate_papers = np.asarray(candidate_papers)
         ranked_candidate_papers = [candidate_papers[i] for i in relevance_idx]
         return ranked_candidate_papers
 
@@ -75,8 +77,8 @@ class Transformer_Reranker(Reranker):
             # no truncation preprocessing required, longest-first truncation is sufficient
             return query_rep, document_rep
         # heuristic: one word = one token
-        query_len = len(query_rep.split(" "))
-        document_len = len(document_rep.split(" "))
+        query_len = len(query_rep.split())
+        document_len = len(document_rep.split())
         input_len = query_len + document_len
         max_input_len -= 3  # three special tokens (1x CLS, 2x SEP)
         truncation_len = input_len - max_input_len
@@ -114,7 +116,7 @@ class Transformer_Reranker(Reranker):
             if query_trunc_len > 0:
                 paragraph = query["paragraph"]
                 sent_idx = paragraph.find("TARGETSENT")
-                paragraph_len = len(paragraph.split(" "))
+                paragraph_len = len(paragraph.split())
                 paragraph_aimed_len_around = paragraph_len - query_trunc_len - 1
                 if paragraph_aimed_len_around <= 0:
                     raise Exception("We did not expect that the whole paragraph or even more needs to be truncated.")
