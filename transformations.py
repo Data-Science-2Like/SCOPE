@@ -1,11 +1,23 @@
-def preprocessing_to_prefetcher():
-    # TODO
-    raise NotImplementedError
+from typing import List,Dict, Tuple
 
 
-def preprocessing_to_citeworthiness_detection():
-    # TODO
-    raise NotImplementedError
+def preprocessing_to_prefetcher(raw_input: Dict[str,List[str]]):
+
+    results = []
+    for section in raw_input.keys():
+        results.append((raw_input[section],section))
+    return results
+
+
+def preprocessing_to_citeworthiness_detection(raw_input):
+
+    results = []
+    idx = 1
+    for section in raw_input.keys():
+        for sentence, citeworthy in raw_input[section]:
+            results.append((str(idx),sentence))
+
+    return results
 
 
 def prefetcher_to_reranker():
