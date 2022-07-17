@@ -23,41 +23,48 @@ from CiteworthinessDetection.CiteworthinessDetection import CiteworthinessDetect
 
 class CiteWorth(CiteworthinessDetection):
 
-    def __init__(self, model_path: str, use_section_info):
+    def __init__(self, model_path: str, use_section_info: str, model_name: str = "allenai/longformer-base-4096"):
         super().__init__()
         self.use_section_info = use_section_info
 
         # See if CUDA available
         self.device = torch.device("cpu")
         if torch.cuda.is_available():
-            print("Training on GPU")
             self.device = torch.device("cuda:0")
 
-        # load the pretrained model
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        # initialize the model
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = _AutoTransformerForSentenceSequenceModeling(
-            model_path,
+            model_name,
             num_labels=2,
             sep_token_id=self.tokenizer.sep_token_id,
             is_section_info_extra=use_section_info == 'extra'
         ).to(self.device)
+
+        # load the pretrained model
+        model_dict = self.model.state_dict()
+        load_model = self.model
+        weights = torch.load(model_path, map_location=lambda storage, loc: storage)
+        model_dict.update(weights)
+        load_model.load_state_dict(model_dict)
+
         self.model.eval()
 
     def predict(self, sentences: List[Tuple[str, str]], section: str) -> List[Tuple[str, str]]:
         with torch.no_grad():
             # process input
             input_ids, masks = self._transform_predict_input_to_model_input(sentences, section)
-            if isinstance(input_ids, torch.Tensor):
-                input_ids.to(self.device)
-            if isinstance(masks, torch.Tensor):
-                masks.to(self.device)
+            input_ids = torch.LongTensor(input_ids)
+            masks = torch.LongTensor(masks)
+            input_ids = input_ids.to(self.device)
+            masks = masks.to(self.device)
 
             # perform the prediction
             raw_outputs = self.model(input_ids=input_ids, attention_mask=masks)['logits'].detach().cpu().numpy()
             preds = np.argmax(raw_outputs.reshape(-1, 2), axis=-1)
 
         # process the output
-        citeworthy_sents = [s for s, label in zip(sentences, preds) if label is 1]
+        citeworthy_sents = [s for s, label in zip(sentences, preds) if label == 1]
         return citeworthy_sents
 
     def _transform_predict_input_to_model_input(self, sentences: List[Tuple[str, str]], section: str):
