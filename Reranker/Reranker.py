@@ -4,11 +4,19 @@ import regex as re
 
 
 class Reranker:
-    def __init__(self):
-        pass
+    def __init__(self, citation_context_fields: List[str], use_year: bool = None):
+        """
+        :param citation_context_fields: The herein named fields are extracted in the given order from citation_context
+                                            and serve as an input to the model.
+        :param use_year: Whether to make use of the year key in candidate_papers as an input to the model.
+                         By default: Set to True if citation_context_fields contains "section", otherwise False.
+        """
+        self.citation_context_fields = citation_context_fields
+        if use_year is None:
+            use_year = "section" in self.citation_context_fields
+        self.use_year = use_year
 
-    def predict(self, citation_context: Dict[str, str], candidate_papers: List[Dict[str, str]],
-                citation_context_fields: List[str], use_year: bool) -> List[Dict[str, str]]:
+    def predict(self, citation_context: Dict[str, str], candidate_papers: List[Dict[str, str]]) -> List[Dict[str, str]]:
         """
         :param citation_context: Representation for a single citation context.
                                  The Dictionary has to contain the keys listed in citation_context_fields.
@@ -16,19 +24,13 @@ class Reranker:
                                     "id", "title", "abstract", "citation_context", "paragraph", "section"
         :param candidate_papers: Each candidate paper is represented by a dictionary within the list.
                                  Each dictionary has to contain the keys "id", "title", "abstract" and (optionally) "year".
-        :param citation_context_fields: The herein named fields are extracted in the given order from citation_context
-                                            and serve as an input to the model.
-        :param use_year: Whether to make use of the year key in candidate_papers as an input to the model.
-                         By default: Set to True if citation_context_fields contains "section", otherwise False.
         :return: list of candidate paper dictionaries sorted by their relevance (from relevant to not relevant)
         """
         raise NotImplementedError
 
-    @staticmethod
-    def _create_citation_context_representation(citation_context: Dict[str, str], citation_context_fields: List[str],
-                                                truncated_paragraph=None):
+    def _create_citation_context_representation(self, citation_context: Dict[str, str], truncated_paragraph=None):
         citation_context_rep = ""
-        for field in citation_context_fields:
+        for field in self.citation_context_fields:
             if field == "paragraph" and truncated_paragraph is not None:
                 citation_context_rep += truncated_paragraph + " "
             else:
@@ -38,10 +40,10 @@ class Reranker:
         citation_context_rep = re.sub(" +", " ", citation_context_rep)
         return citation_context_rep
 
-    @staticmethod
-    def _create_candidate_paper_representation(candidate_paper: Dict[str, str], use_year: bool):
-        if use_year:
-            candidate_paper_rep = candidate_paper["title"] + " " + candidate_paper["year"] + " " + candidate_paper["abstract"]
+    def _create_candidate_paper_representation(self, candidate_paper: Dict[str, str]):
+        if self.use_year:
+            candidate_paper_rep = candidate_paper["title"] + " " + candidate_paper["year"] + " " + candidate_paper[
+                "abstract"]
         else:
             candidate_paper_rep = candidate_paper["title"] + " " + candidate_paper["abstract"]
         candidate_paper_rep = candidate_paper_rep.replace("\n", " ")
