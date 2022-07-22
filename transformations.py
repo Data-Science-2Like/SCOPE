@@ -1,33 +1,58 @@
-from typing import List,Dict, Tuple
+from typing import List, Dict, Tuple
 
 
-def preprocessing_to_prefetcher(raw_input: Dict[str,List[str]]):
-
+def preprocessing_to_prefetcher(raw_input: Dict[str, List[str]]):
     results = []
     for section in raw_input.keys():
-        results.append((raw_input[section],section))
+        results.append((raw_input[section], section))
     return results
 
 
 def preprocessing_to_citeworthiness_detection(raw_input):
+    results = dict()
+    for section in raw_input.keys():
+        sec_results = []
+        for parag in raw_input[section]:
+            tmp_result = []
+            for idx, (sent, _) in enumerate(parag):
+                tmp_result.append((str(idx), sent))
+            sec_results.append(tmp_result)
+        results[section] = sec_results
+    return results
+
+
+def prefetcher_to_reranker(candidate_papers: List[str], papers_info):
+    # Each dictionary has to contain the keys "id", "title", "abstract" and (optionally) "year".
 
     results = []
-    idx = 1
-    for section in raw_input.keys():
-        for sentence, citeworthy in raw_input[section]:
-            results.append((str(idx),sentence))
+    for candidate_paper in candidate_papers:
+        entry = dict()
+        entry['id'] = candidate_paper
+        entry['title'] = papers_info[candidate_paper]['paper_title']
+        entry['abstract'] = papers_info[candidate_paper]['paper_abstract']
+        entry['year'] = papers_info[candidate_paper]['paper_year']
+
+        results.append(entry)
 
     return results
 
 
-def prefetcher_to_reranker():
-    # TODO
-    raise NotImplementedError
+def citeworthiness_detection_to_reranker(sentences, paragraph,section):
+    #                              The Dictionary has to contain the keys listed in citation_context_fields.
+    #                             However, the following keys form a complete list:
+    #                                "id", "title", "abstract", "citation_context", "paragraph", "section"
+    res = []
+    for idx, sentence in enumerate(sentences):
+        entry = dict()
+        entry['id'] = str(idx)
+        entry['title'] = 'Test'
+        entry['title'] = 'Test Test Test'
+        entry['citation_context'] = sentence
+        entry['paragraph'] = paragraph
+        entry['section'] = section
 
-
-def citeworthiness_detection_to_reranker():
-    # TODO: take cite-worthy sentences from citeworthiness-detection and return citation_contexts for reranker
-    raise NotImplementedError
+        res.append(entry)
+    return res
 
 
 def reranker_to_output():
