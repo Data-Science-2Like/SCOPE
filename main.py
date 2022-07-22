@@ -81,6 +81,8 @@ if __name__ == "__main__":
 
         paragraphs = extraction.get_section_text_paragraph()
 
+        correct_citations = extraction.get_section_text_cit_keys()
+
         transformed_citeworth = tf.preprocessing_to_citeworthiness_detection(sentences)
 
         pred_citeworthyness = dict()
@@ -103,16 +105,33 @@ if __name__ == "__main__":
             pred_citeworthyness[section] = sec_result
 
 
+        citation_count = 0
+        correct_count = 0
+
         for section in sentences.keys():
-            for sents, paragraph, cite in zip(sentences[section], paragraphs[section], pred_citeworthyness[section]):
-                only_cite = [s for (s,g),c in zip(sents,cite) if c]
+            for sents, paragraph, cite, correct_papers in zip(sentences[section], paragraphs[section], pred_citeworthyness[section], correct_citations[section]):
+                only_cite = [(s,g,cc) for (s,g),c,cc in zip(sents,cite,correct_papers) if c]
                 if len(only_cite) > 0:
-                    transformed_reranker = transformations.citeworthiness_detection_to_reranker(only_cite,paragraph,section,abstract,title)
+                    only_sent, gt, corr = zip(*only_cite)
+                    transformed_reranker = transformations.citeworthiness_detection_to_reranker(only_sent,paragraph,section,abstract,title)
 
                     transformed_candidates = transformations.prefetcher_to_reranker(candidates[section],papers_info)
 
-                    for cont in transformed_reranker:
-                        pred_reranker = reranker.predict(cont,transformed_candidates)
-                        print(pred_reranker)
+                    for cont, ground, corr_papers in zip(transformed_reranker,gt, corr):
+                        pred_reranker = reranker.predict(cont,transformed_candidates)[:5]
+                        for i, entry in enumerate(pred_reranker):
+                            print(f"Context: {cont['citation_context']}")
+                            print(f"{i+1}: {entry['id']} - {entry['title']}")
+
+                        if ground:
+                            citation_count += 1
+
+                        for pred in pred_reranker:
+                            if pred['id'] in corr_papers:
+                                correct_count += 1
+                                break
+
+        print(f"Found {correct_count} of {citation_count} citations for paper {valid_ids[idx]}")
+
 
         idx += 1
