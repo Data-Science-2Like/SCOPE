@@ -80,6 +80,13 @@ class StructureExtraction:
             self.soup = TexSoup(open(tex_file), tolerance=1)
             # self._analyze_structure()
             self.active = str(id)
+
+            ab = self.soup.abstract
+            if ab is not None:
+                self.abstract = ab.string
+            else:
+                self.abstract = ''
+
             self._filter_unwanted_stuff()
             tmp_file = self.tmp_dir / str(id + ".tex")
             with open(tmp_file, 'w') as f:
@@ -151,6 +158,17 @@ class StructureExtraction:
             stemmed = self.s_dict[stemmed]
 
         return stemmed
+
+    def get_abstract(self) -> str:
+        #return self.soup.abstract.string
+        return self.abstract
+
+    def get_title(self) -> str:
+        t = self.soup.title
+        if t is None:
+            # try alternatives
+            t = self.soup.icmltitle
+        return t.string
 
     def _match_template_rules(self, sections):
         # Declare root of tree

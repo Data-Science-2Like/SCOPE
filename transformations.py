@@ -37,7 +37,7 @@ def prefetcher_to_reranker(candidate_papers: List[str], papers_info):
     return results
 
 
-def citeworthiness_detection_to_reranker(sentences, paragraph,section):
+def citeworthiness_detection_to_reranker(sentences, paragraph,section,abstract, title):
     #                              The Dictionary has to contain the keys listed in citation_context_fields.
     #                             However, the following keys form a complete list:
     #                                "id", "title", "abstract", "citation_context", "paragraph", "section"
@@ -45,12 +45,11 @@ def citeworthiness_detection_to_reranker(sentences, paragraph,section):
     for idx, sentence in enumerate(sentences):
         entry = dict()
         entry['id'] = str(idx)
-        entry['title'] = 'Test'
-        entry['title'] = 'Test Test Test'
+        entry['title'] = title
+        entry['abstract'] = abstract
         entry['citation_context'] = sentence
         entry['paragraph'] = paragraph
         entry['section'] = section
-
         res.append(entry)
     return res
 

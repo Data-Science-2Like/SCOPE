@@ -9,7 +9,7 @@ from Prefetcher.transforms import lists2sparse
 
 import numpy as np
 
-CITE5_PATH = Path("./citeworth/aae_recommender_with_section_info_v5.jsonl")
+CITE5_PATH = Path("./citeworth/aae_recommender_with_section_info_v7.jsonl")
 
 SYNONYM_DICT = {
     "abstract": "abstract",

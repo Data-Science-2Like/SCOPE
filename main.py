@@ -1,5 +1,6 @@
 import json
 
+import transformations
 from PreprocessingWithStructureAnalysis.id_translator import IdTranslator
 from PreprocessingWithStructureAnalysis.structure_extraction import StructureExtraction, DATA_DIR
 
@@ -28,7 +29,7 @@ def load_papers_info(file):
 
 def get_citeworth_array(ids,predict_ids):
     # citeworthy_sents = [s for s, label in zip(sentences, preds) if label == 1]
-    res = [ True for id in ids if id in predict_ids]
+    res = [True if id in predict_ids else False for id in ids]
     return res
 
 if __name__ == "__main__":
@@ -59,6 +60,10 @@ if __name__ == "__main__":
 
         section_list = extraction.get_section_titles()
 
+
+        title = extraction.get_title()
+
+        abstract = extraction.get_abstract()
         # Extract Information for Prefetcher
 
         glob_cits = extraction.get_citations_by_sections()
@@ -78,14 +83,36 @@ if __name__ == "__main__":
 
         transformed_citeworth = tf.preprocessing_to_citeworthiness_detection(sentences)
 
-        for paragraph, section in transformed_citeworth:
+        pred_citeworthyness = dict()
+        for section, paragraph in transformed_citeworth.items():
+            sec_result = []
             for sent in paragraph:
-                ids, _ = zip(*sent)
-                predictions = citworth.predict(sent,section)
-                pred_ids, _ = zip(*predictions)
+                par_result = []
+                if len(sent) > 0:
+                    ids, _ = zip(*sent)
+                    predictions = citworth.predict(sent,section)
+                    pred_ids = []
+                    if len(predictions) > 0:
+                        pred_ids, _ = zip(*predictions)
 
-                print(get_citeworth_array(ids,pred_ids))
+                    # print(get_citeworth_array(ids,pred_ids))
+                    par_result.append(get_citeworth_array(ids,pred_ids))
+                else:
+                    par_result.append([])
+                sec_result.append(par_result)
+            pred_citeworthyness[section] = sec_result
 
 
+        for section in sentences.keys():
+            for sents, paragraph, cite in zip(sentences[section], paragraphs[section], pred_citeworthyness[section]):
+                only_cite = [s for (s,g),c in zip(sents,cite) if c]
+                if len(only_cite) > 0:
+                    transformed_reranker = transformations.citeworthiness_detection_to_reranker(only_cite,paragraph,section,abstract,title)
+
+                    transformed_candidates = transformations.prefetcher_to_reranker(candidates[section],papers_info)
+
+                    for cont in transformed_reranker:
+                        pred_reranker = reranker.predict(cont,transformed_candidates)
+                        print(pred_reranker)
 
         idx += 1
