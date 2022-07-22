@@ -8,8 +8,9 @@ from Reranker.Reranker import Reranker
 
 class Transformer_Reranker(Reranker):
     def __init__(self, model_path: str, model_name: str = 'bert', max_seq_length: int = None,
-                 is_cased: bool = False, own_model_args: dict = None):
-        super().__init__()
+                 is_cased: bool = False, own_model_args: dict = None,
+                 citation_context_fields: List[str] = ("citation_context", "title", "abstract")):
+        super().__init__(citation_context_fields)
         if max_seq_length is None:
             max_seq_length = 4096 if model_name == 'longformer' else 512
         model_args = {
@@ -24,19 +25,14 @@ class Transformer_Reranker(Reranker):
         # load the pretrained model
         self.model = ClassificationModel(model_name, model_path, args=model_args)
 
-    def predict(self, citation_context: Dict[str, str], candidate_papers: List[Dict[str, str]],
-                citation_context_fields: List[str] = ("citation_context", "title", "abstract"),
-                use_year: bool = None) -> List[Dict[str, str]]:
+    def predict(self, citation_context: Dict[str, str], candidate_papers: List[Dict[str, str]]) -> List[Dict[str, str]]:
         # mask citation context in paragraph
-        if "paragraph" in citation_context_fields:
+        if "paragraph" in self.citation_context_fields:
             citation_context["paragraph"] = citation_context["paragraph"].replace(citation_context["citation_context"],
                                                                                   "TARGETSENT")
 
         # process the input
-        if use_year is None:
-            use_year = "section" in citation_context_fields
-        model_input = self._transform_predict_input_to_model_input(citation_context, candidate_papers,
-                                                                   citation_context_fields, use_year)
+        model_input = self._transform_predict_input_to_model_input(citation_context, candidate_papers)
 
         # perform the prediction
         _, raw_outputs = self.model.predict(model_input)
@@ -50,30 +46,28 @@ class Transformer_Reranker(Reranker):
         return ranked_candidate_papers
 
     def _transform_predict_input_to_model_input(self, citation_context: Dict[str, str],
-                                                candidate_papers: List[Dict[str, str]],
-                                                citation_context_fields: List[str], use_year: bool):
+                                                candidate_papers: List[Dict[str, str]]):
         model_input = []
 
         # representation of citation context
-        citation_context_rep = self._create_citation_context_representation(citation_context, citation_context_fields)
+        citation_context_rep = self._create_citation_context_representation(citation_context)
 
         for candidate_paper in candidate_papers:
             # representation of candidate paper
-            candidate_paper_rep = self._create_candidate_paper_representation(candidate_paper, use_year)
+            candidate_paper_rep = self._create_candidate_paper_representation(candidate_paper)
 
             # perform custom truncation preprocessing
             citation_context_rep, candidate_paper_rep = self._perform_truncation_preprocessing(citation_context,
                                                                                                citation_context_rep,
-                                                                                               candidate_paper_rep,
-                                                                                               citation_context_fields)
+                                                                                               candidate_paper_rep)
 
             model_input.append([citation_context_rep, candidate_paper_rep])
 
         return model_input
 
     def _perform_truncation_preprocessing(self, query: Dict[str, str], query_rep: str, document_rep: str,
-                                          query_fields: List[str], max_input_len: int = 512):
-        if "paragraph" not in query_fields:
+                                          max_input_len: int = 512):
+        if "paragraph" not in self.citation_context_fields:
             # no truncation preprocessing required, longest-first truncation is sufficient
             return query_rep, document_rep
         # heuristic: one word = one token
@@ -131,8 +125,7 @@ class Transformer_Reranker(Reranker):
                     left = sent_idx
                     right = paragraph_aimed_len_around - left
                 paragraph = paragraph[sent_idx - left:sent_idx + right + 1]
-                query_rep = self._create_citation_context_representation(query, query_fields,
-                                                                         truncated_paragraph=paragraph)
+                query_rep = self._create_citation_context_representation(query, truncated_paragraph=paragraph)
 
         return query_rep, document_rep
 

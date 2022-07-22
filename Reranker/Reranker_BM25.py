@@ -7,33 +7,34 @@ from Reranker.gensim_summarization_bm25 import BM25
 
 
 class LocalBM25(Reranker, BM25):
-    def __init__(self, all_papers: List[Dict[str, str]], use_year: bool = False,
-                 k1: float = 1.5, b: float = 0.75, epsilon: float = 0.25):
+    def __init__(self, all_papers: List[Dict[str, str]],
+                 k1: float = 1.5, b: float = 0.75, epsilon: float = 0.25,
+                 citation_context_fields: List[str] = ("citation_context", "title", "paragraph"),
+                 mask_citation_context_in_paragraph: bool = False):
         """
-        all_papers and use_year are defined as in predict(...).
+        all_papers are defined as in predict(...).
         However, all_papers does not only contain the prefetched candidate_papers but all possible candidate_papers.
         """
-        Reranker.__init__(self)
+        Reranker.__init__(self, citation_context_fields)
+        self.mask_citation_context_in_paragraph = mask_citation_context_in_paragraph
 
         # create corpus for BM25
         self.corpus = {}
         for paper in all_papers:
-            self.corpus[paper["id"]] = self._create_candidate_paper_representation(paper, use_year)
+            self.corpus[paper["id"]] = self._create_candidate_paper_representation(paper)
         self.paperid_to_corpusidx = {paper_id: corpus_idx for corpus_idx, paper_id in enumerate(self.corpus.keys())}
 
         word_corpus = [value.split() for value in self.corpus.values()]
         BM25.__init__(self, word_corpus, k1, b, epsilon)
 
-    def predict(self, citation_context: Dict[str, str], candidate_papers: List[Dict[str, str]],
-                citation_context_fields: List[str] = ("citation_context", "title", "abstract"),
-                use_year: bool = None) -> List[Dict[str, str]]:
+    def predict(self, citation_context: Dict[str, str], candidate_papers: List[Dict[str, str]]) -> List[Dict[str, str]]:
         # mask citation context in paragraph
-        if "paragraph" in citation_context_fields:
+        if self.mask_citation_context_in_paragraph and "paragraph" in self.citation_context_fields:
             citation_context["paragraph"] = citation_context["paragraph"].replace(citation_context["citation_context"],
                                                                                   "TARGETSENT")
 
         # process the input
-        query = self._create_citation_context_representation(citation_context, citation_context_fields)
+        query = self._create_citation_context_representation(citation_context)
         word_query = query.split()
 
         # perform the prediction
