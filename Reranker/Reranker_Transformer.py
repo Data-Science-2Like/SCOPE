@@ -3,7 +3,7 @@ from typing import List, Dict
 import numpy as np
 from simpletransformers.classification import ClassificationModel
 
-from Reranker.Reranker import Reranker
+from .Reranker import Reranker
 
 
 class Transformer_Reranker(Reranker):

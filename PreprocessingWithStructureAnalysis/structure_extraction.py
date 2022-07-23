@@ -24,7 +24,7 @@ UNWANTED_CMDS = './unwanted_cmds.txt'
 
 TEMPLATES = './templates.json'
 
-nltk.download('omw-1.4')
+#nltk.download('omw-1.4')
 
 def flatten(xss):
     return [x for xs in xss for x in xs]
