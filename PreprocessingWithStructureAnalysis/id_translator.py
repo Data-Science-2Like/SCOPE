@@ -14,6 +14,8 @@ class IdTranslator:
         self.directory = os.path.dirname(os.path.realpath(__file__))
         self.papers_path = os.path.join(self.directory,PAPER_TITLES)
 
+        self.output = False
+
         with open(self.papers_path,'r') as f:
             self.title_dict = json.load(f)
             self.title_list = list(self.title_dict.keys())
@@ -22,7 +24,12 @@ class IdTranslator:
 
 
     def query(self,bib_entries):
+        """Matches a list of bib entires to their closest S2ORC id. If the id is not in the candidate papers
+        then BM25 on the title of the entries and candidates will be used to determine a fallback candidate
 
+                :param bib_entries: A list of bib entries which are going to be resolved
+                :return: The list of S2ORC ids the entries got matched to
+                """
         bm25_cnt = 0
 
         results = list()
@@ -43,6 +50,6 @@ class IdTranslator:
                     results.append(self.title_dict[matched])
             else:
                 results.append(None)
-        if len(results) > 0:
+        if len(results) > 0 and self.output:
             print(f'Warning using bm25 fallback on {bm25_cnt} of {len(results)} queries')
         return results

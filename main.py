@@ -157,31 +157,36 @@ if __name__ == "__main__":
                 sec_result.append(par_result)
             pred_citeworthyness[section] = sec_result
 
-        for section in sentences.keys():
-            for sents, paragraph, cite, correct_papers in zip(sentences[section], paragraphs[section], pred_citeworthyness[section], correct_citations[section]):
-                only_cite = [(s,g,cc) for (s,g),c,cc in zip(sents,cite,correct_papers) if c]
-                if len(only_cite) > 0:
-                    only_sent, gt, corr = zip(*only_cite)
-                    transformed_reranker = transformations.citeworthiness_detection_to_reranker(only_sent,paragraph,section,abstract,title)
+        print(f"Found {correct_citeworthy_count} of {citeworthy_count} citations for paper {valid_ids[idx]} : {title}")
 
-                    transformed_candidates = transformations.prefetcher_to_reranker(candidates[section],papers_info)
+        do_reranker = False
+        if do_reranker:
 
-                    for cont, ground, corr_papers in zip(transformed_reranker,gt, corr):
-                        pred_reranker = reranker.predict(cont,transformed_candidates)[:5]
-                        for i, entry in enumerate(pred_reranker):
-                            print(f"Context: {cont['citation_context']}")
-                            print(f"{i+1}: {entry['id']} - {entry['title']}")
+            for section in sentences.keys():
+                for sents, paragraph, cite, correct_papers in zip(sentences[section], paragraphs[section], pred_citeworthyness[section], correct_citations[section]):
+                    only_cite = [(s,g,cc) for (s,g),c,cc in zip(sents,cite,correct_papers) if c]
+                    if len(only_cite) > 0:
+                        only_sent, gt, corr = zip(*only_cite)
+                        transformed_reranker = transformations.citeworthiness_detection_to_reranker(only_sent,paragraph,section,abstract,title)
 
-                        if ground:
-                            correct_citeworthy_count += 1
+                        transformed_candidates = transformations.prefetcher_to_reranker(candidates[section],papers_info)
 
-                        correct_found_papers = [pred for pred in pred_reranker if pred['id'] in corr_papers]
-                        if len(correct_found_papers) > 0:
-                            correct_citation_count += 1
-                        else:
-                            incorrect_citation_count += 1
+                        for cont, ground, corr_papers in zip(transformed_reranker,gt, corr):
+                            pred_reranker = reranker.predict(cont,transformed_candidates)[:5]
+                            for i, entry in enumerate(pred_reranker):
+                                print(f"Context: {cont['citation_context']}")
+                                print(f"{i+1}: {entry['id']} - {entry['title']}")
 
-        print(f"Found {correct_citation_count} of {correct_citeworthy_count} citations for paper {valid_ids[idx]}")
+                            if ground:
+                                correct_citeworthy_count += 1
+
+                            correct_found_papers = [pred for pred in pred_reranker if pred['id'] in corr_papers]
+                            if len(correct_found_papers) > 0:
+                                correct_citation_count += 1
+                            else:
+                                incorrect_citation_count += 1
+
+            print(f"Found {correct_citation_count} of {correct_citeworthy_count} citations for paper {valid_ids[idx]}")
 
         global_citeworthy_count += citeworthy_count
         global_non_citeworthy_count += non_citeworthy_count

@@ -1,3 +1,6 @@
+from typing import List, Tuple, AnyStr, Dict, TypeVar
+from collections.abc import Callable
+
 import tempfile
 from pathlib import Path
 from TexSoup import TexSoup, TexNode
@@ -24,13 +27,18 @@ UNWANTED_CMDS = './unwanted_cmds.txt'
 
 TEMPLATES = './templates.json'
 
-#nltk.download('omw-1.4')
+T = TypeVar('T')
+# nltk.download('omw-1.4')
 
 def flatten(xss):
     return [x for xs in xss for x in xs]
 
 
 class StructureExtraction:
+    """
+        The implementation of the structure extraction module. Extracts all things needed by the citation pipleline.
+        Uses TexSoup and a bibtex parser under the hood.
+    """
 
     def __init__(self, data_dir):
         self.dir = os.path.dirname(os.path.realpath(__file__))
@@ -58,10 +66,11 @@ class StructureExtraction:
         if not self.data_dir:
             raise ValueError('Data dir not found')
 
-    """ Gets all valid ids in directory which exist as .tex and .bib file
-    """
+    def get_valid_ids(self) -> List[str]:
+        """ Gets all valid ids in directory which exist as .tex and .bib file
 
-    def get_valid_ids(self):
+                :return: A list of valid ids
+                """
         if len(self.valid_ids) > 0:
             return self.valid_ids
         ids = []
@@ -74,6 +83,18 @@ class StructureExtraction:
         return ids
 
     def set_as_active(self, id: str) -> bool:
+        """ Sets the document with the given id as active. If the document can't be loaded False is returned
+            and the Object might be in an invalid state.
+            * There has to be a .tex and .bib document for the given ID
+            * The .tex document gets loaded by TexSoup
+            * .bib document gets loaded by bib parser
+            * Abstract gets extracted
+            * Unwanted enviroments get remmoved
+            * Cleaned Document gets saved as temporary file and the the TexSoup object is loaded again
+
+                :param id: The id of the document which will be loaded
+                :return: True if document has been loaded successfully, False otherwise
+                """
         tex_file = self.data_dir / str(id + ".tex")
         bib_file = self.data_dir / str(id + ".bib")
         try:
@@ -88,6 +109,8 @@ class StructureExtraction:
                 self.abstract = ''
 
             self._filter_unwanted_stuff()
+
+            # Save cleaned document and load TexSoup again
             tmp_file = self.tmp_dir / str(id + ".tex")
             with open(tmp_file, 'w') as f:
                 f.write(str(self.soup))
@@ -106,6 +129,8 @@ class StructureExtraction:
         print(f'Figure Count: {figure_cnt}')
 
     def _filter_unwanted_stuff(self):
+        """ Filters out unwanted enviroments and commands from the Node Tree of the TexSoup Object
+                """
         unwanted_env = list()
         with open(os.path.join(self.dir, UNWANTED_ENVS), 'r') as f:
             unwanted_env = [l.strip() for l in f]
@@ -160,10 +185,18 @@ class StructureExtraction:
         return stemmed
 
     def get_abstract(self) -> str:
-        #return self.soup.abstract.string
+        """ Returns the abstract of the current paper
+
+        :return: The abstract of the current paper
+        """
         return self.abstract
 
     def get_title(self) -> str:
+        """ Returns the title of the current paper.
+        Can find the title among multiple LaTeX command commonly used by scientific papers.
+
+        :return: The title of the current paper
+        """
         t = self.soup.title
         if t is None:
             # try alternatives
@@ -175,9 +208,8 @@ class StructureExtraction:
         root = self.atree.root
 
         sect_tuple = tuple(sections)
-        ##
-        # iterate through tree
 
+        # iterate through tree
         most_specific_rule_len = 0
 
         for item in PreOrderIter(root):
@@ -192,7 +224,12 @@ class StructureExtraction:
             return True
         return False
 
-    def get_section_titles(self):
+    def get_section_titles(self) -> List[str]:
+        """Returns the list of section titles. Also applies synonym dictionary and template matching.
+        Saves the section mapping internally for other methods to use.
+
+        :return: A list of processed section titles
+        """
         if self.soup is None:
             raise ValueError("No file loaded")
         section_list = []
@@ -223,7 +260,12 @@ class StructureExtraction:
 
         return result
 
-    def _get_citations_by_sections(self, transform_citation):
+    def _get_citations_by_sections(self, transform_citation: Callable[TexNode,T]) -> Dict[str,List[T]]:
+        """Returns a dictionary containing citations for the given section.
+        For each citation Transform citation gets applied
+
+        :return: A dictionary containg all citations by section
+        """
         if self.soup is None:
             raise ValueError("No file loaded")
         section_citation_list = self.soup.find_all(['section', 'cite', 'citet', 'citep'])
@@ -249,22 +291,32 @@ class StructureExtraction:
 
         return cite_dict
 
-    def get_citations_by_sections(self):
+    def get_citations_by_sections(self) -> Dict[str,List[str]]:
+        """Returns a dictionary containing the citation keys of each section.
+        The citation keys get resolved using the .bib file and The IdTranslator
+
+        :return: A dictionary containing all citation keys by section
+        """
         if self.soup is None:
             raise ValueError("No file loaded")
 
-        def get_bib_entry(elm):
+        def get_bib_entry(elm: TexNode) -> str:
             keys = str(elm.args[-1])[1:-1].split(',')
             bib_entries = [self.bib.entries_dict[str(x.strip())] for x in keys]
             return self.translator.query(bib_entries)
 
         return self._get_citations_by_sections(get_bib_entry)
 
-    def get_citations_with_pos_by_section(self):
+    def get_citations_with_pos_by_section(self) -> Dict[str,List[Tuple[int,int,List[str]]]]:
+        """Returns a dictionary containing the citation marker of each section.
+            Additonally also the postion and the length of the citation marker is returned
+
+        :return: A dictionary containing all citation marker by section
+        """
         if self.soup is None:
             raise ValueError("No file loaded")
 
-        def get_citation_pos(elm):
+        def get_citation_pos(elm: TexNode) -> Tuple[int,int,List[str]]:
             keys = str(elm.args[-1])[1:-1].split(',')
             return elm.position, len(str(elm.expr)), keys  # use raw position for file seek
 
@@ -308,7 +360,14 @@ class StructureExtraction:
             text = re.sub('[X]{4,}', '', text)
             return text
 
-    def _get_section_lines(self, transform_cits, split_paragraphs = True):
+    def _get_section_lines(self, transform_cits: Callable[List[TexNode],T], split_paragraphs=True) ->Dict[str,List[List[Tuple[str,T]]]]:
+        """Returns a dictionary containing all sentences split by paragraphs for the given sections.
+        For each sentence there is a tuple containing the sentence and the result of what tranform_cits produces
+
+        :param transform_cits: Function which will be applied to all found citations in the parapgraphs
+        :param split_paragraphs: Idicates if the sections is splitup by paragraphs
+        :return: A dictionary containg all sentences split by paragraphs for the sections
+        """
         if self.soup is None:
             raise ValueError("No file loaded")
 
@@ -343,7 +402,8 @@ class StructureExtraction:
                 # mask section tag so that it gets later removed
                 section_text = str('X' * tag_len) + section_text[tag_len:]
 
-                result = self._process_fulltext(curr_section, start_pos, section_text, transform_cits, True, split_paragraphs)
+                result = self._process_fulltext(curr_section, start_pos, section_text, transform_cits, True,
+                                                split_paragraphs)
 
                 section_dict[curr_section] = result
 
@@ -354,16 +414,20 @@ class StructureExtraction:
 
         return section_dict
 
-    def get_section_text_citeworth(self):
+    def get_section_text_citeworth(self) -> Dict[str,List[List[Tuple[str,bool]]]]:
+        """Returns a dictionary containing all sentences split by paragraphs for the given sections.
+        For each sentence there is a tuple containing the sentence and if the sentence has a citation.
 
-        def to_citeworth(cits):
+        :return: A dictionary containg all sentences split by paragraphs for the sections
+        """
+        def to_citeworth(cits: List[TexNode]) -> bool:
             return len(cits) > 0
 
         return self._get_section_lines(to_citeworth)
 
     def get_section_text_cit_keys(self):
 
-        def to_keys(cits):
+        def to_keys(cits: List[TexNode]) -> List[str]:
             cit_keys = [k for c in cits for k in c[2]]
             bib_entries = [self.bib.entries_dict[k] if k in self.bib.entries_dict.keys() else None for k in cit_keys]
             return self.translator.query(bib_entries)
@@ -374,7 +438,8 @@ class StructureExtraction:
         def to_citeworth(cits):
             return len(cits) > 0
 
-        return self._get_section_lines(to_citeworth,False)
+        return self._get_section_lines(to_citeworth, False)
+
 
 if __name__ == "__main__":
     # Test the capabilities of structure extraction
