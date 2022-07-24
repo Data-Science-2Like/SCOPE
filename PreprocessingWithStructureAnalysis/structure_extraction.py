@@ -1,4 +1,4 @@
-from typing import List, Tuple, AnyStr, Dict, TypeVar, Callable
+from typing import List, Tuple, AnyStr, Dict, TypeVar, Callable, Union
 
 import tempfile
 from pathlib import Path
@@ -27,6 +27,8 @@ UNWANTED_CMDS = './unwanted_cmds.txt'
 TEMPLATES = './templates.json'
 
 T = TypeVar('T')
+
+
 # nltk.download('omw-1.4')
 
 def flatten(xss):
@@ -259,7 +261,7 @@ class StructureExtraction:
 
         return result
 
-    def _get_citations_by_sections(self, transform_citation: Callable[[TexNode],T]) -> Dict[str,List[T]]:
+    def _get_citations_by_sections(self, transform_citation: Callable[[TexNode], T]) -> Dict[str, List[T]]:
         """Returns a dictionary containing citations for the given section.
         For each citation Transform citation gets applied
 
@@ -290,7 +292,7 @@ class StructureExtraction:
 
         return cite_dict
 
-    def get_citations_by_sections(self) -> Dict[str,List[str]]:
+    def get_citations_by_sections(self) -> Dict[str, List[str]]:
         """Returns a dictionary containing the citation keys of each section.
         The citation keys get resolved using the .bib file and The IdTranslator
 
@@ -306,7 +308,7 @@ class StructureExtraction:
 
         return self._get_citations_by_sections(get_bib_entry)
 
-    def get_citations_with_pos_by_section(self) -> Dict[str,List[Tuple[int,int,List[str]]]]:
+    def get_citations_with_pos_by_section(self) -> Dict[str, List[Tuple[int, int, List[str]]]]:
         """Returns a dictionary containing the citation marker of each section.
             Additonally also the postion and the length of the citation marker is returned
 
@@ -315,14 +317,15 @@ class StructureExtraction:
         if self.soup is None:
             raise ValueError("No file loaded")
 
-        def get_citation_pos(elm: TexNode) -> Tuple[int,int,List[str]]:
+        def get_citation_pos(elm: TexNode) -> Tuple[int, int, List[str]]:
             keys = str(elm.args[-1])[1:-1].split(',')
             return elm.position, len(str(elm.expr)), keys  # use raw position for file seek
 
         return self._get_citations_by_sections(get_citation_pos)
 
-    def _process_fulltext(self, section_title: str, section_start: int, text: str, transform_cits, mask_citations=True,
-                          split_paragraphs=True):
+    def _process_fulltext(self, section_title: str, section_start: int, text: str,
+                          transform_cits: Callable[[List[Tuple[int, int, List[str]]]], T], mask_citations=True,
+                          split_paragraphs=True) -> Union[List[List[Tuple[str, T]]], str]:
         citations_pos = self.get_citations_with_pos_by_section()[section_title]
         if mask_citations:
             for cit_pos, cit_len, cit_key in citations_pos:
@@ -359,13 +362,15 @@ class StructureExtraction:
             text = re.sub('[X]{4,}', '', text)
             return text
 
-    def _get_section_lines(self, transform_cits: Callable[[List[TexNode]],T], split_paragraphs=True) ->Dict[str,List[List[Tuple[str,T]]]]:
+    def _get_section_lines(self, transform_cits: Callable[[List[Tuple[int, int, List[str]]]], T],
+                           split_paragraphs=True) -> Union[
+        Dict[str, List[List[Tuple[str, T]]]], Dict[str, List[str]]]:
         """Returns a dictionary containing all sentences split by paragraphs for the given sections.
         For each sentence there is a tuple containing the sentence and the result of what tranform_cits produces
 
         :param transform_cits: Function which will be applied to all found citations in the parapgraphs
-        :param split_paragraphs: Idicates if the sections is splitup by paragraphs
-        :return: A dictionary containg all sentences split by paragraphs for the sections
+        :param split_paragraphs: Indicates if the sections is splitup by paragraphs
+        :return: A dictionary containing all sentences split by paragraphs for the sections
         """
         if self.soup is None:
             raise ValueError("No file loaded")
@@ -413,31 +418,43 @@ class StructureExtraction:
 
         return section_dict
 
-    def get_section_text_citeworth(self) -> Dict[str,List[List[Tuple[str,bool]]]]:
+    def get_section_text_citeworth(self) -> Dict[str, List[List[Tuple[str, bool]]]]:
         """Returns a dictionary containing all sentences split by paragraphs for the given sections.
         For each sentence there is a tuple containing the sentence and if the sentence has a citation.
 
-        :return: A dictionary containg all sentences split by paragraphs for the sections
+        :return: A dictionary containing all sentences split by paragraphs for the sections
         """
-        def to_citeworth(cits: List[TexNode]) -> bool:
+
+        def to_citeworth(cits: List[Tuple[int, int, List[str]]]) -> bool:
             return len(cits) > 0
 
         return self._get_section_lines(to_citeworth)
 
-    def get_section_text_cit_keys(self):
+    def get_section_text_cit_keys(self) -> Dict[str, List[List[Tuple[str, List[str]]]]]:
+        """Returns a dictionary containing all sentences split by paragraphs for the given sections.
+        For each sentence there is a tuple containing the sentence and a list of citation key
+        Citation Keys are matched using .bib file and IdTranslator
 
-        def to_keys(cits: List[TexNode]) -> List[str]:
+        :return: A dictionary containing all sentences split by paragraphs for the sections
+        """
+
+        def to_keys(cits: List[Tuple[int, int, List[str]]]) -> List[str]:
             cit_keys = [k for c in cits for k in c[2]]
             bib_entries = [self.bib.entries_dict[k] if k in self.bib.entries_dict.keys() else None for k in cit_keys]
             return self.translator.query(bib_entries)
 
         return self._get_section_lines(to_keys)
 
-    def get_section_text_paragraph(self):
-        def to_citeworth(cits):
-            return len(cits) > 0
+    def get_section_text_paragraph(self) -> Dict[str, List[str]]:
+        """Returns a dictionary containing all paragraphs for the given sections.
 
-        return self._get_section_lines(to_citeworth, False)
+        :return: A dictionary containing all paragraphs for the sections
+        """
+
+        def dummy(cits):
+            return True
+
+        return self._get_section_lines(dummy, False)
 
 
 if __name__ == "__main__":
