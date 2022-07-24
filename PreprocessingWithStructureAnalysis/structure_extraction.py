@@ -1,5 +1,4 @@
-from typing import List, Tuple, AnyStr, Dict, TypeVar
-from collections.abc import Callable
+from typing import List, Tuple, AnyStr, Dict, TypeVar, Callable
 
 import tempfile
 from pathlib import Path
@@ -260,7 +259,7 @@ class StructureExtraction:
 
         return result
 
-    def _get_citations_by_sections(self, transform_citation: Callable[TexNode,T]) -> Dict[str,List[T]]:
+    def _get_citations_by_sections(self, transform_citation: Callable[[TexNode],T]) -> Dict[str,List[T]]:
         """Returns a dictionary containing citations for the given section.
         For each citation Transform citation gets applied
 
@@ -360,7 +359,7 @@ class StructureExtraction:
             text = re.sub('[X]{4,}', '', text)
             return text
 
-    def _get_section_lines(self, transform_cits: Callable[List[TexNode],T], split_paragraphs=True) ->Dict[str,List[List[Tuple[str,T]]]]:
+    def _get_section_lines(self, transform_cits: Callable[[List[TexNode]],T], split_paragraphs=True) ->Dict[str,List[List[Tuple[str,T]]]]:
         """Returns a dictionary containing all sentences split by paragraphs for the given sections.
         For each sentence there is a tuple containing the sentence and the result of what tranform_cits produces
 
