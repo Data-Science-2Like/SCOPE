@@ -116,6 +116,8 @@ class StructureExtraction:
             with open(tmp_file, 'w') as f:
                 f.write(str(self.soup))
             self.bib = bibtexparser.load(open(bib_file))
+            # Reload soap to correct file offsets
+            self.soup = TexSoup(open(tmp_file), tolerance=1)
             return True
         except:
             print(f"Could not load document {tex_file}")
@@ -323,9 +325,52 @@ class StructureExtraction:
 
         return self._get_citations_by_sections(get_citation_pos)
 
+    def _process_section(self, section_title: str, start_pos: int, end_pos: int, tag_len: int,
+                         transform_cits: Callable[[List[Tuple[int, int, List[str]]]], T], mask_citations=True,
+                         split_paragraphs=True) -> Union[List[List[Tuple[str, T]]], str]:
+        """Returns a list containing all sentences for the given sections
+                        For each sentence there is a tuple containing the sentence and the result of what tranform_cits produces
+
+                        :param section_title: Current section title
+                        :param start_pos: start position of section
+                        :param end_pos: end position of section
+                        :param tag_len: length of section tag
+                        :param transform_cits: Function which will be applied to all found citations in the parapgraphs
+                        :param split_paragraphs: Indicates if the sections is splitup by paragraphs
+                        :return: A dictionary containing all sentences split by paragraphs for the sections
+                        """
+        # loaded the processed tex file
+        p_tex_file = self.tmp_dir / str(self.active + ".tex")
+        with open(p_tex_file, 'r') as f:
+            f.seek(start_pos, 0)
+            section_text = f.read(end_pos - start_pos)
+
+            # section text now seems off by a few characters
+            strange_offset = section_text.find('\section')
+
+            # correct readin buffer
+            section_text = section_text[strange_offset:] + f.read(strange_offset)
+
+            # mask section tag so that it gets later removed
+            section_text = str('X' * tag_len) + section_text[tag_len:]
+
+            result = self._process_fulltext(section_title, start_pos, section_text, transform_cits, mask_citations,
+                                            split_paragraphs)
+            return result
+
     def _process_fulltext(self, section_title: str, section_start: int, text: str,
                           transform_cits: Callable[[List[Tuple[int, int, List[str]]]], T], mask_citations=True,
                           split_paragraphs=True) -> Union[List[List[Tuple[str, T]]], str]:
+        """Returns a list containing all sentences for the given sections
+                For each sentence there is a tuple containing the sentence and the result of what tranform_cits produces
+
+                :param section_title: Current section title
+                :param section_start: start position of section
+                :param text: fulltext of section
+                :param transform_cits: Function which will be applied to all found citations in the parapgraphs
+                :param split_paragraphs: Indicates if the sections is splitup by paragraphs
+                :return: A dictionary containing all sentences split by paragraphs for the sections
+                """
         citations_pos = self.get_citations_with_pos_by_section()[section_title]
         if mask_citations:
             for cit_pos, cit_len, cit_key in citations_pos:
@@ -349,10 +394,12 @@ class StructureExtraction:
                 for sentence in sentences:
                     cits_in_sentence = [c for c in citations_pos if
                                         c[0] - section_start > offset and c[0] - section_start < offset + len(sentence)]
-                    result_sentences.append((re.sub('[X]{4,}', '', sentence), transform_cits(cits_in_sentence)))
+                    masked_sentence = re.sub('[X]{4,}', '', sentence)
+                    if len(masked_sentence) > 0:
+                        result_sentences.append((masked_sentence, transform_cits(cits_in_sentence)))
                     offset += len(sentence)
-
-                result_paragraphs.append(result_sentences)
+                if len(result_sentences) > 0:
+                    result_paragraphs.append(result_sentences)
             if offset != len(text):
                 print(f"Missmatch between offset: {offset} and text len {len(text)}")
 
@@ -384,37 +431,28 @@ class StructureExtraction:
         start_pos = None
         end_pos = None
 
-        for sec_title, position, tag_len in section_list:
+        for sec_title, position, next_tag_len in section_list:
+            # Iterate over the first N-1 sections
             if start_pos is None:
                 curr_section = sec_title
                 start_pos = position
+                curr_tag_len = next_tag_len
                 continue
             end_pos = position
 
-            # loaded the processed tex file
-            p_tex_file = self.tmp_dir / str(self.active + ".tex")
-            with open(p_tex_file, 'r') as f:
-                f.seek(start_pos, 0)
-                section_text = f.read(end_pos - start_pos)
-
-                # section text now seems off by a few characters
-                strange_offset = section_text.find('\section')
-
-                # correct readin buffer
-                section_text = section_text[strange_offset:] + f.read(strange_offset)
-
-                # mask section tag so that it gets later removed
-                section_text = str('X' * tag_len) + section_text[tag_len:]
-
-                result = self._process_fulltext(curr_section, start_pos, section_text, transform_cits, True,
-                                                split_paragraphs)
-
-                section_dict[curr_section] = result
-
+            section_dict[curr_section] = self._process_section(curr_section, start_pos, end_pos, curr_tag_len,
+                                                               transform_cits, True,
+                                                               split_paragraphs)
             start_pos = end_pos
             curr_section = sec_title
+            curr_tag_len = next_tag_len
 
-            # TODO process last section
+        # Now readin last section
+        end_pos = 1000000
+        tag_len = section_list[-1][2]
+        section_dict[curr_section] = self._process_section(curr_section, start_pos, end_pos, tag_len, transform_cits,
+                                                           True,
+                                                           split_paragraphs)
 
         return section_dict
 
