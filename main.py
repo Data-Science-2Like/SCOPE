@@ -6,13 +6,16 @@ from PreprocessingWithStructureAnalysis.structure_extraction import StructureExt
 
 from Reranker.Reranker_Transformer import Transformer_Reranker
 
-#from Prefetcher.aae_recommender import AAERecommender
+# from Prefetcher.aae_recommender import AAERecommender
 
-from CiteworthinessDetection.CiteWorth import  CiteWorth
+from CiteworthinessDetection.CiteWorth import CiteWorth
 
 from Prefetcher.baselines import BM25Baseline
 
 import transformations as tf
+
+K = 2000
+
 
 def load_papers_info(file):
     papers_info = dict()
@@ -27,10 +30,12 @@ def load_papers_info(file):
 
     return papers_info
 
-def get_citeworth_array(ids,predict_ids):
+
+def get_citeworth_array(ids, predict_ids):
     # citeworthy_sents = [s for s, label in zip(sentences, preds) if label == 1]
     res = [True if id in predict_ids else False for id in ids]
     return res
+
 
 if __name__ == "__main__":
 
@@ -47,8 +52,8 @@ if __name__ == "__main__":
 
     reranker = Transformer_Reranker('./Reranker/trained/reranker-acl200-5epochs')
 
-    #citworth = CiteWorth('./CiteworthinessDetection/trained/citeworth-ctx-section-always-seed1000.pth','always')
-    citworth = CiteWorth('./CiteworthinessDetection/trained/citeworth-ctx-section-always-seed1000.pth','always')
+    # citworth = CiteWorth('./CiteworthinessDetection/trained/citeworth-ctx-section-always-seed1000.pth','always')
+    citworth = CiteWorth('./CiteworthinessDetection/trained/citeworth-ctx-section-always-seed1000.pth', 'always')
 
     print("Loaded models successfully")
     input("Press to continue")
@@ -63,7 +68,7 @@ if __name__ == "__main__":
     # Sentences which need a citation and get found by the citeworthy module
     global_correct_citeworthy_count = 0
     # Sentences which don't need a citation and get found by the citeworthy module
-    global_correct_non_citeworthy_count =  0
+    global_correct_non_citeworthy_count = 0
     # Sentences which don't need a citation but get labeled as such
     global_incorrect_citeworthy_count = 0
     # Sentences which need a citation but don't get labeled as such
@@ -93,101 +98,119 @@ if __name__ == "__main__":
         # Sentences which need a citation, get labeled as citeworth, but reranker doesn't find the right thing
         incorrect_citation_count = 0
 
+        # Extract Global Information
+        paper_section_list = extraction.get_section_titles()
+        paper_title = extraction.get_title()
+        paper_abstract = extraction.get_abstract()
 
-        section_list = extraction.get_section_titles()
-
-
-        title = extraction.get_title()
-
-        abstract = extraction.get_abstract()
         # Extract Information for Prefetcher
+        paper_global_citations = extraction.get_citations_by_sections()
 
-        glob_cits = extraction.get_citations_by_sections()
+        # Extract Information for Citeworth
+        paper_sentences_with_citeworth = extraction.get_section_text_citeworth()
 
-        transformed_prefetcher = tf.preprocessing_to_prefetcher(glob_cits)
+        # Extract Information for Reranker
+        paper_paragraphs = extraction.get_section_text_paragraph()
+        paper_sentences_with_correct_citations = extraction.get_section_text_cit_keys()
+
+        # Transform data
+        transformed_prefetcher = tf.preprocessing_to_prefetcher(paper_global_citations)
+        transformed_citeworth = tf.preprocessing_to_citeworthiness_detection(paper_sentences_with_citeworth)
 
         # Apply Prefetcher
-        candidates = dict()
-        for cits, section in transformed_prefetcher:
-            candidates[section] = prefetcher.predict(cits,section,200)
+        predicted_candidates = dict([(sec, prefetcher.predict(cits, sec, K)) for cits, sec in transformed_prefetcher])
 
-        # Extract Information for CiteWorth
+        # sentences = extraction.get_section_text_citeworth()
 
-        sentences = extraction.get_section_text_citeworth()
+        # paragraphs = extraction.get_section_text_paragraph()
 
-        paragraphs = extraction.get_section_text_paragraph()
+        # correct_citations = extraction.get_section_text_cit_keys()
 
-        correct_citations = extraction.get_section_text_cit_keys()
+        # Apply CiteWorth
+        predicted_citeworthiness = dict()
+        for section, paragraph_queries in transformed_citeworth.items():
+            section_predictions = []
+            for sentence_queries, ground_truth in zip(paragraph_queries, paper_sentences_with_citeworth[section]):
+                if len(sentence_queries) > 0:
+                    # All ids in the current batch of sentence queries
+                    ids, _ = zip(*sentence_queries)
 
-        transformed_citeworth = tf.preprocessing_to_citeworthiness_detection(sentences)
+                    # The values wich were extracted by structure extraction
+                    _, extracted_labels = zip(*ground_truth)
+                    extracted_labels = list(extracted_labels)
 
-        pred_citeworthyness = dict()
-        for section, paragraph in transformed_citeworth.items():
-            sec_result = []
-            for sent, gt in zip(paragraph,sentences[section]):
-                par_result = []
-                if len(sent) > 0:
-                    ids, _ = zip(*sent)
+                    # Keep track on the amount of citeworthy and non citeworthy sentences
+                    citeworthy_count += extracted_labels.count(True)
+                    non_citeworthy_count += extracted_labels.count(False)
 
-                    _, extracted_labels = zip(*gt)
+                    # Apply Citeworth
+                    sentence_predictions = citworth.predict(sentence_queries, section)
 
-                    citeworthy_count += list(extracted_labels).count(True)
-                    non_citeworthy_count += list(extracted_labels).count(False)
+                    # Check the predictions with our extracted truths
+                    pred_ids = [id for id, _ in sentence_predictions]
 
-                    predictions = citworth.predict(sent,section)
-                    pred_ids = []
-                    if len(predictions) > 0:
-                        pred_ids, _ = zip(*predictions)
-
-                    pred_array = get_citeworth_array(ids,pred_ids)
-
-                    eval_array = zip(extracted_labels,pred_array)
-
+                    pred_array = get_citeworth_array(ids, pred_ids)
+                    eval_array = zip(extracted_labels, pred_array)
                     eval_array = list(eval_array)
 
-                    correct_citeworthy_count += eval_array.count((True,True))
-                    correct_non_citeworthy_count += eval_array.count((False,False))
-                    incorrect_citeworthy_count += eval_array.count((False,True))
-                    incorrect_non_citeworthy_count += eval_array.count((True,False))
+                    # Keep track of the labeled sentence results
+                    correct_citeworthy_count += eval_array.count((True, True))
+                    correct_non_citeworthy_count += eval_array.count((False, False))
+                    incorrect_citeworthy_count += eval_array.count((False, True))
+                    incorrect_non_citeworthy_count += eval_array.count((True, False))
 
-                    # print(get_citeworth_array(ids,pred_ids))
-                    par_result.append(pred_array)
+                    section_predictions.append(pred_array)
                 else:
-                    par_result.append([])
-                sec_result.append(par_result)
-            pred_citeworthyness[section] = sec_result
+                    section_predictions.append([])
+            predicted_citeworthiness[section] = section_predictions
 
-        print(f"Found {correct_citeworthy_count} of {citeworthy_count} citations for paper {valid_ids[idx]} : {title}")
+        print(
+            f"Found {correct_citeworthy_count} of {citeworthy_count} citations for paper {valid_ids[idx]} : {paper_title}")
 
         do_reranker = False
         if do_reranker:
+            for section in paper_sentences_with_correct_citations.keys():
+                for (sentences, correct_papers), paragraph, citeworth in zip(
+                        paper_sentences_with_correct_citations[section],
+                        paper_paragraphs[section],
+                        predicted_citeworthiness[section]):
+                    # Keep only sentences labeled as citeworthy
+                    only_citeworthy_sentences = [(s, g, cc) for (s, g), c, cc in
+                                                 zip(sentences, citeworth, correct_papers) if c]
+                    if len(only_citeworthy_sentences) > 0:
+                        c_sentences, c_gt, c_papers = zip(*only_citeworthy_sentences)
 
-            for section in sentences.keys():
-                for sents, paragraph, cite, correct_papers in zip(sentences[section], paragraphs[section], pred_citeworthyness[section], correct_citations[section]):
-                    only_cite = [(s,g,cc) for (s,g),c,cc in zip(sents,cite,correct_papers) if c]
-                    if len(only_cite) > 0:
-                        only_sent, gt, corr = zip(*only_cite)
-                        transformed_reranker = transformations.citeworthiness_detection_to_reranker(only_sent,paragraph,section,abstract,title)
+                        # Transform the data to reranker format
+                        transformed_reranker_sentences = transformations.citeworthiness_detection_to_reranker(
+                            c_sentences,
+                            paragraph, section,
+                            paper_abstract,
+                            paper_title)
 
-                        transformed_candidates = transformations.prefetcher_to_reranker(candidates[section],papers_info)
+                        transformed_candidates = transformations.prefetcher_to_reranker(predicted_candidates[section],
+                                                                                        papers_info)
 
-                        for cont, ground, corr_papers in zip(transformed_reranker,gt, corr):
-                            pred_reranker = reranker.predict(cont,transformed_candidates)[:5]
+                        for citation_context, c_citeworth, extracted_papers in zip(transformed_reranker_sentences, c_gt, c_papers):
+                            pred_reranker = reranker.predict(citation_context, transformed_candidates)[:5]
+
+                            # Print out for user feedback
                             for i, entry in enumerate(pred_reranker):
-                                print(f"Context: {cont['citation_context']}")
-                                print(f"{i+1}: {entry['id']} - {entry['title']}")
+                                print(f"Context: {citation_context['citation_context']}")
+                                print(f"{i + 1}: {entry['id']} - {entry['title']}")
 
-                            if ground:
-                                correct_citeworthy_count += 1
+                            if c_citeworth:
+                                # we only can check if citation is correct if there was a citation to begin with
 
-                            correct_found_papers = [pred for pred in pred_reranker if pred['id'] in corr_papers]
-                            if len(correct_found_papers) > 0:
-                                correct_citation_count += 1
-                            else:
-                                incorrect_citation_count += 1
+                                # get correctly found papers
+                                correct_found_papers = [pred for pred in pred_reranker if pred['id'] in extracted_papers]
+                                if len(correct_found_papers) > 0:
+                                    correct_citation_count += 1
+                                else:
+                                    incorrect_citation_count += 1
 
             print(f"Found {correct_citation_count} of {correct_citeworthy_count} citations for paper {valid_ids[idx]}")
 
+        # Copy counters to global variables
         global_citeworthy_count += citeworthy_count
         global_non_citeworthy_count += non_citeworthy_count
         global_correct_citation_count += correct_citation_count
