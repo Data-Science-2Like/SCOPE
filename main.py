@@ -1,9 +1,9 @@
 import json
-
+import os
 import transformations
 from PreprocessingWithStructureAnalysis.id_translator import IdTranslator
 from PreprocessingWithStructureAnalysis.structure_extraction import StructureExtraction, DATA_DIR
-
+import shutil
 from Reranker.Reranker_Transformer import Transformer_Reranker
 
 # from Prefetcher.aae_recommender import AAERecommender
@@ -45,11 +45,13 @@ def get_citeworth_array(ids, predict_ids):
 
 if __name__ == "__main__":
 
-    extraction = StructureExtraction(DATA_DIR)
+    extraction = StructureExtraction('./tex-expanded')
 
-    valid_ids = extraction.get_valid_ids()
+    #valid_ids = extraction.get_valid_ids()
 
-    #loaded_ids = json.load(open('loaded_ids.json'))
+    valid_ids = json.load(open('loaded_ids.json'))
+
+
     #print(f"Already loaded {len(loaded_ids)} papers sucessfully")
     idx = 0
     #last_loaded_id = '211007045'
