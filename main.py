@@ -14,6 +14,9 @@ from Prefetcher.baselines import BM25Baseline
 
 import transformations as tf
 
+import sys
+sys.setrecursionlimit(10000)
+
 K = 2000
 
 
@@ -30,6 +33,9 @@ def load_papers_info(file):
 
     return papers_info
 
+def av(l):
+    avg = sum(l) / len(l)
+    return avg
 
 def get_citeworth_array(ids, predict_ids):
     # citeworthy_sents = [s for s, label in zip(sentences, preds) if label == 1]
@@ -42,6 +48,14 @@ if __name__ == "__main__":
     extraction = StructureExtraction(DATA_DIR)
 
     valid_ids = extraction.get_valid_ids()
+
+    #loaded_ids = json.load(open('loaded_ids.json'))
+    #print(f"Already loaded {len(loaded_ids)} papers sucessfully")
+    idx = 0
+    #last_loaded_id = '211007045'
+    #while int(valid_ids[idx]) <= int(last_loaded_id):
+    #    idx += 1
+    #idx += 2
     # json.dump(valid_ids, open('valid_ids','w'))
     papers_info = load_papers_info('./s2orc/papers.jsonl')
 
@@ -56,8 +70,8 @@ if __name__ == "__main__":
     citworth = CiteWorth('./CiteworthinessDetection/trained/citeworth-ctx-section-always-seed1000.pth', 'always')
 
     print("Loaded models successfully")
-    input("Press to continue")
-    idx = 0
+    #input("Press to continue")
+    #idx = 0
 
     # Sentences which are citeworthy
     global_citeworthy_count = 0
@@ -76,10 +90,19 @@ if __name__ == "__main__":
     # Sentences which need a citation, get labeled as citeworth, but reranker doesn't find the right thing
     global_incorrect_citation_count = 0
 
+    sentence_counts = []
     while True:
         if not extraction.set_as_active(valid_ids[idx]):
             idx += 1
             continue
+        #else:
+        #    loaded_ids.append(valid_ids[idx])
+        #    json.dump(loaded_ids, open('loaded_ids.json', 'w'))
+        #    sc = extraction.get_sentence_count()
+        #    sentence_counts.append(sc)
+        #    print(f"{av(sentence_counts)} lines per paper")
+        #    idx += 1
+        #    continue
 
         # Sentences which are citeworthy
         citeworthy_count = 0
@@ -190,7 +213,8 @@ if __name__ == "__main__":
                         transformed_candidates = transformations.prefetcher_to_reranker(predicted_candidates[section],
                                                                                         papers_info)
 
-                        for citation_context, c_citeworth, extracted_papers in zip(transformed_reranker_sentences, c_gt, c_papers):
+                        for citation_context, c_citeworth, extracted_papers in zip(transformed_reranker_sentences, c_gt,
+                                                                                   c_papers):
                             pred_reranker = reranker.predict(citation_context, transformed_candidates)[:5]
 
                             # Print out for user feedback
@@ -202,7 +226,8 @@ if __name__ == "__main__":
                                 # we only can check if citation is correct if there was a citation to begin with
 
                                 # get correctly found papers
-                                correct_found_papers = [pred for pred in pred_reranker if pred['id'] in extracted_papers]
+                                correct_found_papers = [pred for pred in pred_reranker if
+                                                        pred['id'] in extracted_papers]
                                 if len(correct_found_papers) > 0:
                                     correct_citation_count += 1
                                 else:
@@ -223,3 +248,4 @@ if __name__ == "__main__":
         idx += 1
 
     print(f"Found {global_correct_citation_count} of {global_correct_citeworthy_count} citations for all papers")
+    # json.dump(loaded_ids, open('loaded_ids.json','w'))

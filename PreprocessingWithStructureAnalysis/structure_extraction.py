@@ -409,6 +409,16 @@ class StructureExtraction:
             text = re.sub('[X]{4,}', '', text)
             return text
 
+
+    def get_sentence_count(self):
+        sections = self.get_section_text_citeworth()
+
+        count = 0
+        for section in sections.keys():
+            for sentences in sections[section]:
+                count += len(sentences)
+        return count
+
     def _get_section_lines(self, transform_cits: Callable[[List[Tuple[int, int, List[str]]]], T],
                            split_paragraphs=True) -> Union[
         Dict[str, List[List[Tuple[str, T]]]], Dict[str, List[str]]]:
@@ -423,6 +433,8 @@ class StructureExtraction:
             raise ValueError("No file loaded")
 
         sObjs = self.soup.find_all('section')
+
+        # TODO sometimes crashes when s is Array or List
         section_list = [(self._preprocess_section_title(str(s.string)), s.position, len(str(s.expr))) for s in sObjs]
 
         section_dict = dict()
@@ -447,12 +459,14 @@ class StructureExtraction:
             curr_section = sec_title
             curr_tag_len = next_tag_len
 
-        # Now readin last section
-        end_pos = 1000000
-        tag_len = section_list[-1][2]
-        section_dict[curr_section] = self._process_section(curr_section, start_pos, end_pos, tag_len, transform_cits,
-                                                           True,
-                                                           split_paragraphs)
+
+        if len(section_list) > 0:
+            # Now readin last section
+            end_pos = 1000000
+            tag_len = section_list[-1][2]
+            section_dict[curr_section] = self._process_section(curr_section, start_pos, end_pos, tag_len, transform_cits,
+                                                               True,
+                                                               split_paragraphs)
 
         return section_dict
 

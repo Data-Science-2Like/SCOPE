@@ -14,6 +14,7 @@ from tqdm import tqdm
 class RandomBaseline(Prefetcher):
 
     def __init__(self):
+        super().__init__()
         bags, x_train = load_dataset(2019, 2018, 2)
         self.bags = bags
 
