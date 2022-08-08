@@ -42,7 +42,7 @@ def do_joblib_check(data: dict):
     find_paper_ids(missing_ids)
 
 
-def find_paper_ids(searching_ids: list):
+def find_paper_ids(searching_ids: set):
     version = 7
     found_ids = set()
     with open(f"../s2orc/aae_recommender_with_section_info_v{version}.jsonl") as f:
