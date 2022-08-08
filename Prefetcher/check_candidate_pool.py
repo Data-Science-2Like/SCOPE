@@ -29,6 +29,8 @@ def do_joblib_check(data: dict):
     for k in data.keys():
         citing_papers.add(k)
 
+        assert None not in data[k]
+
     too_much_ids = citing_papers - reranker_citing_ids
 
     missing_ids = reranker_citing_ids - citing_papers
@@ -51,7 +53,8 @@ def find_paper_ids(searching_ids: set):
 
             if (entry['paper_id'] in searching_ids):
                 found_ids.add(entry['paper_id'])
-                print("Found missing paper_id")
+                print(f"Found missing paper_id at index {idx}")
+                print(entry)
 
     now_missing = searching_ids - found_ids
     print(f"Now missing papers {len(now_missing)}")
