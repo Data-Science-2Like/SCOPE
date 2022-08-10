@@ -201,10 +201,20 @@ class StructureExtraction:
         :return: The title of the current paper
         """
         t = self.soup.title
+        # try alternatives
         if t is None:
-            # try alternatives
+            t = self.soup.Title
+        if t is None:
             t = self.soup.icmltitle
-        return t.string
+        if t is None:
+            t = self.soup.aistatstitle
+        if t is None:
+            t = self.soup.LARGE
+        try:
+            return t.string
+        except:
+            print("Error on get title")
+            return ''
 
     def _match_template_rules(self, sections):
         # Declare root of tree
@@ -220,7 +230,7 @@ class StructureExtraction:
             if sub(sect_tuple, res):
                 if most_specific_rule_len < len(res):
                     most_specific_rule_len = len(res)
-                print(item)
+                #print(item)
 
         if most_specific_rule_len > 3:
             # now change all to methods
@@ -400,7 +410,7 @@ class StructureExtraction:
                     offset += len(sentence)
                 if len(result_sentences) > 0:
                     result_paragraphs.append(result_sentences)
-            if offset != len(text):
+            if offset > len(text):
                 print(f"Missmatch between offset: {offset} and text len {len(text)}")
 
             return result_paragraphs

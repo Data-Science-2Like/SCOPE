@@ -40,7 +40,7 @@ class IdTranslator:
                 cleaned  = re.sub('[^A-Za-z0-9 ]+', '', title.lower())
                 try:
                     results.append(self.title_dict[cleaned])
-                    print(f'Real match on {cleaned}')                
+                    #print(f'Real match on {cleaned}')
                 except KeyError as e:
                     bm25_cnt += 1
                     tokenized = cleaned.split(' ')
