@@ -242,7 +242,7 @@ def load_dataset(year, val_year=None, min_count=None, drop=1):
 
     train_set, test_set, = None, None
 
-    full_vocab, _ = bags.build_vocab(min_count=min_count, max_features=max_features, apply=False)
+    full_vocab, _ = bags.build_vocab(min_count=min_count, max_features=None, apply=False)
 
     train_set, test_set = bags.train_test_split(on_year=year)
 
