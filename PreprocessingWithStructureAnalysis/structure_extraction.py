@@ -210,8 +210,10 @@ class StructureExtraction:
             t = self.soup.aistatstitle
         if t is None:
             t = self.soup.LARGE
+        if t is None:
+            t = self.soup.mlsystitle
         try:
-            return t.string
+            return t.args[-1].string
         except:
             print("Error on get title")
             return ''
@@ -247,12 +249,15 @@ class StructureExtraction:
             raise ValueError("No file loaded")
         section_list = []
         for s_candidate in self.soup.find_all(['section', 'appendix']):
-            if s_candidate.name == 'appendix':
+            if len(s_candidate.args) == 0:
+                continue
+            s_string = s_candidate.args[-1].string.lower()
+            if s_string == 'appendix':
                 break
-            if s_candidate.string.lower() == 'conclusion':
-                section_list.append(s_candidate.string.lower())
+            if s_string == 'conclusion':
+                section_list.append(s_string)
                 break
-            section_list.append(s_candidate.string.lower())
+            section_list.append(s_string)
 
         result = [self._preprocess_section_title(s) for s in section_list]
 
@@ -285,9 +290,12 @@ class StructureExtraction:
         cur_sec = ''
         cite_dict = dict()
         for elm in section_citation_list:
+            if len(elm.args) == 0:
+                continue
+            e_string = elm.args[-1].string.lower()
             if elm.name == 'section':
                 # begin new section
-                cur_sec = self._preprocess_section_title(elm.string.lower())
+                cur_sec = self._preprocess_section_title(e_string)
                 cite_dict[cur_sec] = []
             else:
                 try:
@@ -444,8 +452,7 @@ class StructureExtraction:
 
         sObjs = self.soup.find_all('section')
 
-        # TODO sometimes crashes when s is Array or List
-        section_list = [(self._preprocess_section_title(str(s.string)), s.position, len(str(s.expr))) for s in sObjs]
+        section_list = [(self._preprocess_section_title(str(s.args[-1].string)), s.position, len(str(s.expr))) for s in sObjs]
 
         section_dict = dict()
 

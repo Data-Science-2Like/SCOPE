@@ -36,7 +36,9 @@ class IdTranslator:
 
         for bib in bib_entries:
             if bib is not None:
-                title = bib['title']
+                if 'title' not in bib.keys():
+                    print("Warning a bibtex entry has no value for title")
+                title = bib.get('title','')
                 cleaned  = re.sub('[^A-Za-z0-9 ]+', '', title.lower())
                 try:
                     results.append(self.title_dict[cleaned])

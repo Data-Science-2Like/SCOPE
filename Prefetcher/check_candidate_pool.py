@@ -41,6 +41,8 @@ def do_joblib_check(data: dict):
 
     print(f"To Much papers {len(too_much_ids)}")
 
+    print(data['83458577'].keys())
+
     find_paper_ids(missing_ids)
 
 

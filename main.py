@@ -51,7 +51,6 @@ if __name__ == "__main__":
 
     valid_ids = json.load(open('loaded_ids.json'))
 
-
     #print(f"Already loaded {len(loaded_ids)} papers sucessfully")
     idx = 0
     #last_loaded_id = '211007045'
@@ -93,10 +92,18 @@ if __name__ == "__main__":
     global_incorrect_citation_count = 0
 
     sentence_counts = []
+    while int(valid_ids[idx]) < int('200412152'):
+        idx += 1
+
     while True:
         if not extraction.set_as_active(valid_ids[idx]):
             idx += 1
             continue
+
+        if int(valid_ids[idx]) > int('200512152'):
+            exit()
+
+        print(f"Loaded paper {valid_ids[idx]}")
         #else:
         #    loaded_ids.append(valid_ids[idx])
         #    json.dump(loaded_ids, open('loaded_ids.json', 'w'))
@@ -138,6 +145,8 @@ if __name__ == "__main__":
         paper_paragraphs = extraction.get_section_text_paragraph()
         paper_sentences_with_correct_citations = extraction.get_section_text_cit_keys()
 
+        idx += 1
+        continue
         # Transform data
         transformed_prefetcher = tf.preprocessing_to_prefetcher(paper_global_citations)
         transformed_citeworth = tf.preprocessing_to_citeworthiness_detection(paper_sentences_with_citeworth)
