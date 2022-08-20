@@ -241,20 +241,16 @@ def load_dataset(year, val_year=None, min_count=None, drop=1):
     np.random.seed(seed)
 
     train_set, test_set, = None, None
-    if val_year is not None and val_year > 0:
-        train_set, _, test_set = bags.train_val_test_split(val_year=val_year,
-                                                           test_year=year)
-    else:
-        train_set, test_set = bags.train_test_split(on_year=year)
+
+    full_vocab, _ = bags.build_vocab(min_count=min_count, max_features=max_features, apply=False)
+
     train_set, test_set = bags.train_test_split(on_year=year)
 
     log("=" * 80)
     log("Train:", train_set)
     log("Test:", test_set)
-    train_set = train_set.build_vocab(min_count=min_count,
-                                      max_features=None,
-                                      apply=True)
-    test_set = test_set.apply_vocab(train_set.vocab)
+    train_set = train_set.apply_vocab(full_vocab)
+    test_set = test_set.apply_vocab(full_vocab)
 
     min_elements = 1
     # Train and test sets are now BagsWithVocab
