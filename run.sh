@@ -2,4 +2,6 @@
 
 GPU=2
 
+export TOKENIZERS_PARALLELISM=false
+
 CUDA_VISIBLE_DEVICES=$GPU python3 main.py

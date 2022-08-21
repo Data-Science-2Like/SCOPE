@@ -6,6 +6,8 @@ from PreprocessingWithStructureAnalysis.structure_extraction import StructureExt
 import shutil
 from Reranker.Reranker_Transformer import Transformer_Reranker
 
+from typing import List, Dict
+
 from Prefetcher.aae_recommender import AAERecommender
 
 from CiteworthinessDetection.CiteWorth import CiteWorth
@@ -241,6 +243,11 @@ if __name__ == "__main__":
 
                     for citation_context, c_citeworth, extracted_papers in zip(transformed_reranker_sentences, c_gt,
                                                                                c_papers):
+
+                        if not c_citeworth:
+                            # For our evaluation we can't assign correct values to citation context which aren't labeled as citeworthy
+                            # to save time during our evaluation we will skip those contexts all together
+                            continue
 
                         pred_reranker = reranker.predict(citation_context, transformed_candidates)
 
