@@ -67,7 +67,7 @@ if __name__ == "__main__":
     prefetcher = AAERecommender('./Prefetcher/trained/aae.torch',True)
     # prefetcher = BM25Baseline()
 
-    reranker = Transformer_Reranker('./Reranker/trained/reranker-acl200-5epochs')
+    reranker = Transformer_Reranker('./Reranker/trained')
 
     # citworth = CiteWorth('./CiteworthinessDetection/trained/citeworth-ctx-section-always-seed1000.pth','always')
     citworth = CiteWorth('./CiteworthinessDetection/trained/citeworth-ctx-section-always-seed1000.pth', 'always')

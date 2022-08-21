@@ -78,10 +78,11 @@ class AAERecommender(Prefetcher):
     def __init__(self, model_path: str, use_section_info):
         super().__init__()
         self.use_section_info = use_section_info
-        self.conditions = CONDITIONS
+        #self.conditions = CONDITIONS
+        self.conditions = None
         self.model_params = None
         self.model = AdversarialAutoEncoder(conditions=self.conditions, **AE_PARAMS)
-        # self.model = AdversarialAutoEncoder(conditions=None, **AE_PARAMS)
+        #self.model = AdversarialAutoEncoder(conditions=None, **AE_PARAMS)
         self.model.load_model(model_path)
         bags, x_train = load_dataset(2019, 2018, 1)
         self.bags = bags
@@ -297,9 +298,9 @@ class AdversarialAutoEncoder():
 
         self.conditions = conditions
 
-        self.prediction_size = 107774
+        self.prediction_size = 27066 # TODO move somewhere else
 
-        self.use_condition = True
+        self.use_condition = False
 
         if self.use_condition:
             code_size = self.n_code + self.conditions.size_increment()
