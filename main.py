@@ -2,7 +2,7 @@ import json
 import os
 import transformations
 from PreprocessingWithStructureAnalysis.id_translator import IdTranslator
-from PreprocessingWithStructureAnalysis.structure_extraction import StructureExtraction, DATA_DIR
+from PreprocessingWithStructureAnalysis.structure_extraction import StructureExtraction
 import shutil
 from Reranker.Reranker_Transformer import Transformer_Reranker
 
@@ -47,7 +47,7 @@ GPU = 2
 
 if __name__ == "__main__":
 
-    extraction = StructureExtraction('./tex-expanded')
+    extraction = StructureExtraction('../tex-expanded')
 
     #valid_ids = extraction.get_valid_ids()
 
@@ -94,16 +94,16 @@ if __name__ == "__main__":
     global_incorrect_citation_count = 0
 
     sentence_counts = []
-    while int(valid_ids[idx]) < int('200412152'):
-        idx += 1
+    #while int(valid_ids[idx]) < int('200412152'):
+    #    idx += 1
 
     while True:
         if not extraction.set_as_active(valid_ids[idx]):
             idx += 1
             continue
 
-        if int(valid_ids[idx]) > int('200512152'):
-            exit()
+        #if int(valid_ids[idx]) > int('200512152'):
+        #    exit()
 
         print(f"Loaded paper {valid_ids[idx]}")
         #else:
@@ -147,8 +147,6 @@ if __name__ == "__main__":
         paper_paragraphs = extraction.get_section_text_paragraph()
         paper_sentences_with_correct_citations = extraction.get_section_text_cit_keys()
 
-        idx += 1
-        continue
         # Transform data
         transformed_prefetcher = tf.preprocessing_to_prefetcher(paper_global_citations)
         transformed_citeworth = tf.preprocessing_to_citeworthiness_detection(paper_sentences_with_citeworth)
@@ -203,15 +201,19 @@ if __name__ == "__main__":
         print(
             f"Found {correct_citeworthy_count} of {citeworthy_count} citations for paper {valid_ids[idx]} : {paper_title}")
 
-        do_reranker = False
+        do_reranker = True
         if do_reranker:
             for section in paper_sentences_with_correct_citations.keys():
-                for (sentences, correct_papers), paragraph, citeworth in zip(
+                for tup, paragraph, citeworth in zip(
                         paper_sentences_with_correct_citations[section],
                         paper_paragraphs[section],
                         predicted_citeworthiness[section]):
+
+                    # Tuple in for loop syntax seems to not work on the server
+                    sentences, correct_papers = zip(*tup)
+
                     # Keep only sentences labeled as citeworthy
-                    only_citeworthy_sentences = [(s, g, cc) for (s, g), c, cc in
+                    only_citeworthy_sentences = [(t[0], t[1], cc) for t, c, cc in
                                                  zip(sentences, citeworth, correct_papers) if c]
                     if len(only_citeworthy_sentences) > 0:
                         c_sentences, c_gt, c_papers = zip(*only_citeworthy_sentences)

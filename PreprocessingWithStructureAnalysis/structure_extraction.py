@@ -18,8 +18,6 @@ import os
 
 import re
 
-DATA_DIR = 'D:/expanded'
-
 SYNONYM_DICT = './synonym_dict.json'
 UNWANTED_ENVS = './unwanted_envs.txt'
 UNWANTED_CMDS = './unwanted_cmds.txt'
@@ -50,8 +48,8 @@ class StructureExtraction:
         self.bib = None
         self.active = None
         self.lemmatizer = WordNetLemmatizer()
-        # self.tmp_dir = Path(tempfile.mkdtemp())
-        self.tmp_dir = Path('C:\\Users\\Simon\\Desktop\\test2')
+        self.tmp_dir = Path(tempfile.mkdtemp())
+        # self.tmp_dir = Path('C:\\Users\\Simon\\Desktop\\test2')
         self.translator = IdTranslator()
         with open(os.path.join(self.dir, SYNONYM_DICT)) as f:
             self.s_dict = json.load(f)
