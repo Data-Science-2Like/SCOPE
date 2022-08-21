@@ -6,7 +6,7 @@ from PreprocessingWithStructureAnalysis.structure_extraction import StructureExt
 import shutil
 from Reranker.Reranker_Transformer import Transformer_Reranker
 
-# from Prefetcher.aae_recommender import AAERecommender
+from Prefetcher.aae_recommender import AAERecommender
 
 from CiteworthinessDetection.CiteWorth import CiteWorth
 
@@ -43,13 +43,15 @@ def get_citeworth_array(ids, predict_ids):
     return res
 
 
+GPU = 2
+
 if __name__ == "__main__":
 
     extraction = StructureExtraction('./tex-expanded')
 
     #valid_ids = extraction.get_valid_ids()
 
-    valid_ids = json.load(open('loaded_ids.json'))
+    valid_ids = json.load(open('correct_ids.json'))
 
     #print(f"Already loaded {len(loaded_ids)} papers sucessfully")
     idx = 0
@@ -62,8 +64,8 @@ if __name__ == "__main__":
 
     print(f"Found {len(valid_ids)} tex files with corresponding bibtex entry")
 
-    # prefetcher = AAERecommender('./Prefetcher/trained/aae.torch',True)
-    prefetcher = BM25Baseline()
+    prefetcher = AAERecommender('./Prefetcher/trained/aae.torch',True)
+    # prefetcher = BM25Baseline()
 
     reranker = Transformer_Reranker('./Reranker/trained/reranker-acl200-5epochs')
 
@@ -245,6 +247,19 @@ if __name__ == "__main__":
                                     incorrect_citation_count += 1
 
             print(f"Found {correct_citation_count} of {correct_citeworthy_count} citations for paper {valid_ids[idx]}")
+            result_obj = {'paper_id' : valid_ids[idx], 
+                            'citeworthy_count' : citeworthy_count,
+                            'non_citeworthy_count' : non_citeworthy_count,
+                            'correct_citation_count' : correct_citation_count,
+                            'correct_citeworthy_count' : correct_citeworthy_count,
+                            'correct_non_citeworthy_count' : correct_non_citeworthy_count,
+                            'incorrect_citeworthy_count' : incorrect_citeworthy_count,
+                            'incorrect_non_citeworthy_count' : incorrect_non_citeworthy_count,
+                            'incorrect_citation_count' : incorrect_citation_count };
+
+            with open('results_experiments.jsonl','a+') as f:
+                f.write(f'{json.dumps(result_obj)}\n')
+
 
         # Copy counters to global variables
         global_citeworthy_count += citeworthy_count
@@ -255,8 +270,17 @@ if __name__ == "__main__":
         global_incorrect_citeworthy_count += incorrect_citeworthy_count
         global_incorrect_non_citeworthy_count += incorrect_non_citeworthy_count
         global_incorrect_citation_count += incorrect_citation_count
-
         idx += 1
 
     print(f"Found {global_correct_citation_count} of {global_correct_citeworthy_count} citations for all papers")
     # json.dump(loaded_ids, open('loaded_ids.json','w'))
+    global_result_obj = {'paper_id' : 'all', 
+                            'citeworthy_count' : global_citeworthy_count,
+                            'non_citeworthy_count' : global_non_citeworthy_count,
+                            'correct_citation_count' : global_correct_citation_count,
+                            'correct_citeworthy_count' : global_correct_citeworthy_count,
+                            'correct_non_citeworthy_count' : global_correct_non_citeworthy_count,
+                            'incorrect_citeworthy_count' : global_incorrect_citeworthy_count,
+                            'incorrect_non_citeworthy_count' : global_incorrect_non_citeworthy_count,
+                            'incorrect_citation_count' : global_incorrect_citation_count };
+

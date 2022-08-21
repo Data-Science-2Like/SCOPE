@@ -60,7 +60,7 @@ AE_PARAMS = {
     'n_code': 50,
     'n_epochs': 20,
     'batch_size': 5000,
-    'n_hidden': 100,
+    'n_hidden': 240,
     'normalize_inputs': True,
     'gen_lr' : 0.001,
     'reg_lr' : 0.001
@@ -81,8 +81,9 @@ class AAERecommender(Prefetcher):
         self.conditions = CONDITIONS
         self.model_params = None
         self.model = AdversarialAutoEncoder(conditions=self.conditions, **AE_PARAMS)
+        # self.model = AdversarialAutoEncoder(conditions=None, **AE_PARAMS)
         self.model.load_model(model_path)
-        bags, x_train = load_dataset(2019, 2018, 2)
+        bags, x_train = load_dataset(2019, 2018, 1)
         self.bags = bags
         print(self.model)
 
