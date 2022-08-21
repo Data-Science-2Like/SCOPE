@@ -1,0 +1,5 @@
+
+
+GPU=2
+
+CUDA_VISIBLE_DEVICES=$GPU python3 main.py

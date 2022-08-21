@@ -84,7 +84,8 @@ if __name__ == "__main__":
     # Sentences which are non citeworthy
     global_non_citeworthy_count = 0
     # Sentences which need a citation, get found by citeworth and reranker
-    global_correct_citation_count = 0
+    global_correct_citation_count_r5 = 0
+    global_correct_citation_count_r10 = 0
     # Sentences which need a citation and get found by the citeworthy module
     global_correct_citeworthy_count = 0
     # Sentences which don't need a citation and get found by the citeworthy module
@@ -94,7 +95,8 @@ if __name__ == "__main__":
     # Sentences which need a citation but don't get labeled as such
     global_incorrect_non_citeworthy_count = 0
     # Sentences which need a citation, get labeled as citeworth, but reranker doesn't find the right thing
-    global_incorrect_citation_count = 0
+    global_incorrect_citation_count_r5 = 0
+    global_incorrect_citation_count_r10 = 0
 
     sentence_counts = []
     # while int(valid_ids[idx]) < int('200412152'):
@@ -123,7 +125,8 @@ if __name__ == "__main__":
         # Sentences which are non citeworthy
         non_citeworthy_count = 0
         # Sentences which need a citation, get found by citeworth and reranker
-        correct_citation_count = 0
+        correct_citation_count_r5 = 0
+        correct_citation_count_r10 = 0
         # Sentences which need a citation and get found by the citeworthy module
         correct_citeworthy_count = 0
         # Sentences which don't need a citation and get found by the citeworthy module
@@ -133,7 +136,8 @@ if __name__ == "__main__":
         # Sentences which need a citation but don't get labeled as such
         incorrect_non_citeworthy_count = 0
         # Sentences which need a citation, get labeled as citeworth, but reranker doesn't find the right thing
-        incorrect_citation_count = 0
+        incorrect_citation_count_r5 = 0
+        incorrect_citation_count_r10 = 0
 
         # Extract Global Information
         paper_section_list = extraction.get_section_titles()
@@ -238,34 +242,46 @@ if __name__ == "__main__":
                     for citation_context, c_citeworth, extracted_papers in zip(transformed_reranker_sentences, c_gt,
                                                                                c_papers):
 
-                        pred_reranker = reranker.predict(citation_context, transformed_candidates)[:5]
+                        pred_reranker = reranker.predict(citation_context, transformed_candidates)
 
                         # Print out for user feedback
-                        for i, entry in enumerate(pred_reranker):
-                            print(f"Context: {citation_context['citation_context']}")
+                        print(f"Context: {citation_context['citation_context']}")
+                        for i, entry in enumerate(pred_reranker[:5]):
                             print(f"{i + 1}: {entry['id']} - {entry['title']}")
 
                         if c_citeworth:
                             # we only can check if citation is correct if there was a citation to begin with
-
-                            # get correctly found papers
-                            correct_found_papers = [pred for pred in pred_reranker if
+                            def get_correct(k: int) -> List[str]:
+                                # get correctly found papers
+                                correct_found_papers = [pred for pred in pred_reranker[:k] if
                                                     pred['id'] in extracted_papers]
-                            if len(correct_found_papers) > 0:
-                                correct_citation_count += 1
-                            else:
-                                incorrect_citation_count += 1
+                                return correct_found_papers
 
-            print(f"Found {correct_citation_count} of {correct_citeworthy_count} citations for paper {valid_ids[idx]}")
+                            r5 = get_correct(5)
+                            r10 = get_correct(10)
+
+                            if len(r5) > 0:
+                                correct_citation_count_r5 += 1
+                            else:
+                                incorrect_citation_count_r5 += 1
+
+                            if len(r10) > 0:
+                                correct_citation_count_r10 += 1
+                            else:
+                                incorrect_citation_count_r10 += 1
+
+            print(f"Found {correct_citation_count_r5} of {correct_citeworthy_count} citations for paper {valid_ids[idx]}")
             result_obj = {'paper_id': valid_ids[idx],
                           'citeworthy_count': citeworthy_count,
                           'non_citeworthy_count': non_citeworthy_count,
-                          'correct_citation_count': correct_citation_count,
+                          'correct_citation_count_r5': correct_citation_count_r5,
+                          'correct_citation_count_r10': correct_citation_count_r10,
                           'correct_citeworthy_count': correct_citeworthy_count,
                           'correct_non_citeworthy_count': correct_non_citeworthy_count,
                           'incorrect_citeworthy_count': incorrect_citeworthy_count,
                           'incorrect_non_citeworthy_count': incorrect_non_citeworthy_count,
-                          'incorrect_citation_count': incorrect_citation_count};
+                          'incorrect_citation_count_r5': incorrect_citation_count_r5,
+                          'incorrect_citation_count_r10': incorrect_citation_count_r10};
 
             with open('results_experiments.jsonl', 'a+') as f:
                 f.write(f'{json.dumps(result_obj)}\n')
@@ -273,22 +289,26 @@ if __name__ == "__main__":
         # Copy counters to global variables
         global_citeworthy_count += citeworthy_count
         global_non_citeworthy_count += non_citeworthy_count
-        global_correct_citation_count += correct_citation_count
+        global_correct_citation_count_r5 += correct_citation_count_r5
+        global_correct_citation_count_r10 += correct_citation_count_r10
         global_correct_citeworthy_count += correct_citeworthy_count
         global_correct_non_citeworthy_count += correct_non_citeworthy_count
         global_incorrect_citeworthy_count += incorrect_citeworthy_count
         global_incorrect_non_citeworthy_count += incorrect_non_citeworthy_count
-        global_incorrect_citation_count += incorrect_citation_count
+        global_incorrect_citation_count_r5 += incorrect_citation_count_r5
+        global_incorrect_citation_count_r10 += incorrect_citation_count_r10
         idx += 1
 
-    print(f"Found {global_correct_citation_count} of {global_correct_citeworthy_count} citations for all papers")
+    print(f"Found {global_correct_citation_count_r5} of {global_correct_citeworthy_count} citations for all papers")
     # json.dump(loaded_ids, open('loaded_ids.json','w'))
     global_result_obj = {'paper_id': 'all',
                          'citeworthy_count': global_citeworthy_count,
                          'non_citeworthy_count': global_non_citeworthy_count,
-                         'correct_citation_count': global_correct_citation_count,
+                         'correct_citation_count_r5': global_correct_citation_count_r5,
+                         'correct_citation_count_r10': global_correct_citation_count_r10,
                          'correct_citeworthy_count': global_correct_citeworthy_count,
                          'correct_non_citeworthy_count': global_correct_non_citeworthy_count,
                          'incorrect_citeworthy_count': global_incorrect_citeworthy_count,
                          'incorrect_non_citeworthy_count': global_incorrect_non_citeworthy_count,
-                         'incorrect_citation_count': global_incorrect_citation_count};
+                         'incorrect_citation_count_r5': global_incorrect_citation_count_r5,
+                         'incorrect_citation_count_r10': global_incorrect_citation_count_r10};
