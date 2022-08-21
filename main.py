@@ -15,6 +15,7 @@ from Prefetcher.baselines import BM25Baseline
 import transformations as tf
 
 import sys
+
 sys.setrecursionlimit(10000)
 
 K = 2000
@@ -33,9 +34,11 @@ def load_papers_info(file):
 
     return papers_info
 
+
 def av(l):
     avg = sum(l) / len(l)
     return avg
+
 
 def get_citeworth_array(ids, predict_ids):
     # citeworthy_sents = [s for s, label in zip(sentences, preds) if label == 1]
@@ -49,16 +52,16 @@ if __name__ == "__main__":
 
     extraction = StructureExtraction('../tex-expanded')
 
-    #valid_ids = extraction.get_valid_ids()
+    # valid_ids = extraction.get_valid_ids()
 
     valid_ids = json.load(open('correct_ids.json'))
 
-    #print(f"Already loaded {len(loaded_ids)} papers sucessfully")
+    # print(f"Already loaded {len(loaded_ids)} papers sucessfully")
     idx = 0
-    #last_loaded_id = '211007045'
-    #while int(valid_ids[idx]) <= int(last_loaded_id):
+    # last_loaded_id = '211007045'
+    # while int(valid_ids[idx]) <= int(last_loaded_id):
     #    idx += 1
-    #idx += 2
+    # idx += 2
     # json.dump(valid_ids, open('valid_ids','w'))
     papers_info = load_papers_info('./s2orc/papers.jsonl')
 
@@ -73,8 +76,8 @@ if __name__ == "__main__":
     citworth = CiteWorth('./CiteworthinessDetection/trained/citeworth-ctx-section-always-seed1000.pth', 'always')
 
     print("Loaded models successfully")
-    #input("Press to continue")
-    #idx = 0
+    # input("Press to continue")
+    # idx = 0
 
     # Sentences which are citeworthy
     global_citeworthy_count = 0
@@ -94,7 +97,7 @@ if __name__ == "__main__":
     global_incorrect_citation_count = 0
 
     sentence_counts = []
-    #while int(valid_ids[idx]) < int('200412152'):
+    # while int(valid_ids[idx]) < int('200412152'):
     #    idx += 1
 
     while True:
@@ -102,11 +105,11 @@ if __name__ == "__main__":
             idx += 1
             continue
 
-        #if int(valid_ids[idx]) > int('200512152'):
+        # if int(valid_ids[idx]) > int('200512152'):
         #    exit()
 
         print(f"Loaded paper {valid_ids[idx]}")
-        #else:
+        # else:
         #    loaded_ids.append(valid_ids[idx])
         #    json.dump(loaded_ids, open('loaded_ids.json', 'w'))
         #    sc = extraction.get_sentence_count()
@@ -204,64 +207,68 @@ if __name__ == "__main__":
         do_reranker = True
         if do_reranker:
             for section in paper_sentences_with_correct_citations.keys():
-                for tup, paragraph, citeworth in zip(
+                for tup, gt_tuple, paragraph, citeworth in zip(
                         paper_sentences_with_correct_citations[section],
+                        paper_sentences_with_citeworth[section],
                         paper_paragraphs[section],
                         predicted_citeworthiness[section]):
 
                     # Tuple in for loop syntax seems to not work on the server
                     sentences, correct_papers = zip(*tup)
+                    _, gt_citeworthyness = zip(*gt_tuple)
 
                     # Keep only sentences labeled as citeworthy
-                    only_citeworthy_sentences = [(t[0], t[1], cc) for t, c, cc in
-                                                 zip(sentences, citeworth, correct_papers) if c]
-                    if len(only_citeworthy_sentences) > 0:
-                        c_sentences, c_gt, c_papers = zip(*only_citeworthy_sentences)
+                    only_citeworthy_sentences = [(s, t, cc) for s, t, c, cc in
+                                                 zip(sentences, gt_citeworthyness, citeworth, correct_papers) if c]
+                    if len(only_citeworthy_sentences) == 0:
+                        # didn't detect citeworthy sentences
+                        continue
+                    c_sentences, c_gt, c_papers = zip(*only_citeworthy_sentences)
 
-                        # Transform the data to reranker format
-                        transformed_reranker_sentences = transformations.citeworthiness_detection_to_reranker(
-                            c_sentences,
-                            paragraph, section,
-                            paper_abstract,
-                            paper_title)
+                    # Transform the data to reranker format
+                    transformed_reranker_sentences = transformations.citeworthiness_detection_to_reranker(
+                        c_sentences,
+                        paragraph, section,
+                        paper_abstract,
+                        paper_title)
 
-                        transformed_candidates = transformations.prefetcher_to_reranker(predicted_candidates[section],
-                                                                                        papers_info)
+                    transformed_candidates = transformations.prefetcher_to_reranker(predicted_candidates[section],
+                                                                                    papers_info)
 
-                        for citation_context, c_citeworth, extracted_papers in zip(transformed_reranker_sentences, c_gt,
-                                                                                   c_papers):
-                            pred_reranker = reranker.predict(citation_context, transformed_candidates)[:5]
+                    for citation_context, c_citeworth, extracted_papers in zip(transformed_reranker_sentences, c_gt,
+                                                                               c_papers):
 
-                            # Print out for user feedback
-                            for i, entry in enumerate(pred_reranker):
-                                print(f"Context: {citation_context['citation_context']}")
-                                print(f"{i + 1}: {entry['id']} - {entry['title']}")
+                        pred_reranker = reranker.predict(citation_context, transformed_candidates)[:5]
 
-                            if c_citeworth:
-                                # we only can check if citation is correct if there was a citation to begin with
+                        # Print out for user feedback
+                        for i, entry in enumerate(pred_reranker):
+                            print(f"Context: {citation_context['citation_context']}")
+                            print(f"{i + 1}: {entry['id']} - {entry['title']}")
 
-                                # get correctly found papers
-                                correct_found_papers = [pred for pred in pred_reranker if
-                                                        pred['id'] in extracted_papers]
-                                if len(correct_found_papers) > 0:
-                                    correct_citation_count += 1
-                                else:
-                                    incorrect_citation_count += 1
+                        if c_citeworth:
+                            # we only can check if citation is correct if there was a citation to begin with
+
+                            # get correctly found papers
+                            correct_found_papers = [pred for pred in pred_reranker if
+                                                    pred['id'] in extracted_papers]
+                            if len(correct_found_papers) > 0:
+                                correct_citation_count += 1
+                            else:
+                                incorrect_citation_count += 1
 
             print(f"Found {correct_citation_count} of {correct_citeworthy_count} citations for paper {valid_ids[idx]}")
-            result_obj = {'paper_id' : valid_ids[idx], 
-                            'citeworthy_count' : citeworthy_count,
-                            'non_citeworthy_count' : non_citeworthy_count,
-                            'correct_citation_count' : correct_citation_count,
-                            'correct_citeworthy_count' : correct_citeworthy_count,
-                            'correct_non_citeworthy_count' : correct_non_citeworthy_count,
-                            'incorrect_citeworthy_count' : incorrect_citeworthy_count,
-                            'incorrect_non_citeworthy_count' : incorrect_non_citeworthy_count,
-                            'incorrect_citation_count' : incorrect_citation_count };
+            result_obj = {'paper_id': valid_ids[idx],
+                          'citeworthy_count': citeworthy_count,
+                          'non_citeworthy_count': non_citeworthy_count,
+                          'correct_citation_count': correct_citation_count,
+                          'correct_citeworthy_count': correct_citeworthy_count,
+                          'correct_non_citeworthy_count': correct_non_citeworthy_count,
+                          'incorrect_citeworthy_count': incorrect_citeworthy_count,
+                          'incorrect_non_citeworthy_count': incorrect_non_citeworthy_count,
+                          'incorrect_citation_count': incorrect_citation_count};
 
-            with open('results_experiments.jsonl','a+') as f:
+            with open('results_experiments.jsonl', 'a+') as f:
                 f.write(f'{json.dumps(result_obj)}\n')
-
 
         # Copy counters to global variables
         global_citeworthy_count += citeworthy_count
@@ -276,13 +283,12 @@ if __name__ == "__main__":
 
     print(f"Found {global_correct_citation_count} of {global_correct_citeworthy_count} citations for all papers")
     # json.dump(loaded_ids, open('loaded_ids.json','w'))
-    global_result_obj = {'paper_id' : 'all', 
-                            'citeworthy_count' : global_citeworthy_count,
-                            'non_citeworthy_count' : global_non_citeworthy_count,
-                            'correct_citation_count' : global_correct_citation_count,
-                            'correct_citeworthy_count' : global_correct_citeworthy_count,
-                            'correct_non_citeworthy_count' : global_correct_non_citeworthy_count,
-                            'incorrect_citeworthy_count' : global_incorrect_citeworthy_count,
-                            'incorrect_non_citeworthy_count' : global_incorrect_non_citeworthy_count,
-                            'incorrect_citation_count' : global_incorrect_citation_count };
-
+    global_result_obj = {'paper_id': 'all',
+                         'citeworthy_count': global_citeworthy_count,
+                         'non_citeworthy_count': global_non_citeworthy_count,
+                         'correct_citation_count': global_correct_citation_count,
+                         'correct_citeworthy_count': global_correct_citeworthy_count,
+                         'correct_non_citeworthy_count': global_correct_non_citeworthy_count,
+                         'incorrect_citeworthy_count': global_incorrect_citeworthy_count,
+                         'incorrect_non_citeworthy_count': global_incorrect_non_citeworthy_count,
+                         'incorrect_citation_count': global_incorrect_citation_count};
