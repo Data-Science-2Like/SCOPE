@@ -47,6 +47,13 @@ def get_citeworth_array(ids, predict_ids):
     res = [True if id in predict_ids else False for id in ids]
     return res
 
+def collect_already_processed():
+    already_processed = set()
+    with open('results_experiments.jsonl') as f:
+        for line in f:
+            entry = json.loads(line.strip())
+            already_processed.add(entry['paper_id'])
+    print(f"Loaded {len(already_processed)} results")
 
 GPU = 2
 
@@ -57,6 +64,8 @@ if __name__ == "__main__":
     # valid_ids = extraction.get_valid_ids()
 
     valid_ids = json.load(open('correct_ids.json'))
+
+    already_processed = collect_already_processed()
 
     # print(f"Already loaded {len(loaded_ids)} papers sucessfully")
     idx = 0
@@ -105,6 +114,10 @@ if __name__ == "__main__":
     #    idx += 1
 
     while True:
+        if valid_ids[idx] in already_processed:
+            idx += 1
+            continue
+
         if not extraction.set_as_active(valid_ids[idx]):
             idx += 1
             continue
