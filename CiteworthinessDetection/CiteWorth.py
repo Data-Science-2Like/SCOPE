@@ -24,6 +24,11 @@ from CiteworthinessDetection.CiteworthinessDetection import CiteworthinessDetect
 class CiteWorth(CiteworthinessDetection):
 
     def __init__(self, model_path: str, use_section_info: str, model_name: str = "allenai/longformer-base-4096"):
+        """
+        :param model_path: path to pretrained model *.pth file
+        :param use_section_info: either 'always', 'first', 'extra' or None depending on the pretrained model variant
+        :param model_name: name of the transformer model to be loaded from huggingface fitting the pretrained model variant
+        """
         super().__init__()
         self.use_section_info = use_section_info
 
