@@ -54,6 +54,7 @@ def collect_already_processed():
             entry = json.loads(line.strip())
             already_processed.add(entry['paper_id'])
     print(f"Loaded {len(already_processed)} results")
+    return already_processed
 
 GPU = 2
 
