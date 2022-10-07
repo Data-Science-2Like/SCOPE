@@ -1,3 +1,9 @@
+"""
+©2022 Carolin Schindler
+The implementation in this file is licensed under the CC BY-NC-SA 4.0 (Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International) License.
+To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-sa/4.0/
+"""
+
 from typing import List, Tuple
 
 

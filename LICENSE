@@ -1,19 +1,21 @@
-We license the code written by us for this project under the MIT License.
+This project includes code from other repositories and authors, which are licensed as follows:
+
+The code in the Cite-worthiness Detection folder is taken partially from the repository https://github.com/Data-Science-2Like/cite-worth-with-section-info.
+Hence, the python files in this directory are licensed under
+the MIT (https://opensource.org/licenses/MIT) and the CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/) License
+as stated in the respective files.
+
+The code in the Prefetcher folder comes from the repository https://github.com/Data-Science-2Like/aae-rec-with-section-info/blob/main/LICENSE.md
+and is therefore licensed under the GPL-3.0 (https://www.gnu.org/licenses/gpl-3.0.de.html) License by Lukas Galke and Simon Birkholz, respectively.
+
+The Reranker folder contains the implementation of the BM25 algorithm by the gensim library https://github.com/RaRe-Technologies/gensim/blob/e889fa3d45a406cabbc7e180fa9a8ee3f76ac6f0/gensim/summarization/bm25.py
+and implementations of the BM25 Reranker and SciBERT Reranker are taken from the repository https://github.com/Data-Science-2Like/SciBERT-Reranker.
+Hence, the python files in this directory are licensed under
+the GNU LGPL v2.1 (http://www.gnu.org/licenses/lgpl.html) and the CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/) License
+as stated in the respective files.
 
 
-This project also Includes code from other Repositories and Authors which are therefor licensed differently.
-
-The code in the Cite-worthiness Detection folder comes from the Repository https://github.com/Data-Science-2Like/SCOPE/tree/main/CiteworthinessDetection
-and is therefore licensed under the MIT (https://opensource.org/licenses/MIT) License by CopeNLU and Carolin Schindler, respectively
-
-The code in the Prefetcher Folder comes from the Repository https://github.com/Data-Science-2Like/aae-rec-with-section-info/blob/main/LICENSE.md
-and is therefore licensed under the GPL-3.0 (https://www.gnu.org/licenses/gpl-3.0.de.html) License by Lukas Galke and Simon Birkholz, respectively
-
-The Reranker folder contains a implementation for the BM25 algorithm taken from the gensim library https://github.com/RaRe-Technologies/gensim/blob/e889fa3d45a406cabbc7e180fa9a8ee3f76ac6f0/gensim/summarization/bm25.py
-and is therefore licensed under the GNU LGPL v2.1 (http://www.gnu.org/licenses/lgpl.html) license.
-
-The rest is licensed under:
-
+If not stated differently above or in the beginning of the python files, the code is licensed under the MIT License:
 
 MIT License
 
